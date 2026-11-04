@@ -328,9 +328,91 @@
             </button>
           </div>
           <p id="gameMessage" class="side-copy"></p>
-          <label class="sound-setting"
-            ><input id="soundToggle" type="checkbox" /> Train sounds</label
-          >
+          <details class="sound-panel" open>
+            <summary>Sounds</summary>
+            <div class="sound-row">
+              <label
+                ><input type="checkbox" id="soundTurnEnabled" /> Turn ends ·
+                toot toot</label
+              >
+              <div class="sound-volume">
+                <label for="soundTurnVolume">Volume</label
+                ><input
+                  type="range"
+                  id="soundTurnVolume"
+                  min="0"
+                  max="100"
+                  value="70"
+                  aria-label="Turn-end volume"
+                /><output id="soundTurnValue">70%</output
+                ><button
+                  type="button"
+                  class="small-button sound-play"
+                  data-play-sound="turn"
+                  aria-label="Play turn-end sound"
+                >
+                  Play
+                </button>
+              </div>
+            </div>
+            <fieldset class="train-sound-options">
+              <legend>When a train goes up</legend>
+              <label
+                ><input type="radio" name="trainSound" value="off" checked />
+                Off</label
+              >
+              <div class="sound-row">
+                <label
+                  ><input type="radio" name="trainSound" value="normal" />
+                  Chugga chugga, choo choo</label
+                >
+                <div class="sound-volume">
+                  <label for="soundNormalVolume">Volume</label
+                  ><input
+                    type="range"
+                    id="soundNormalVolume"
+                    min="0"
+                    max="100"
+                    value="70"
+                    aria-label="Chugga choo volume"
+                  /><output id="soundNormalValue">70%</output
+                  ><button
+                    type="button"
+                    class="small-button sound-play"
+                    data-play-sound="normal"
+                    aria-label="Play chugga choo sound"
+                  >
+                    Play
+                  </button>
+                </div>
+              </div>
+              <div class="sound-row">
+                <label
+                  ><input type="radio" name="trainSound" value="station" /> All
+                  aboard!</label
+                >
+                <div class="sound-volume">
+                  <label for="soundStationVolume">Volume</label
+                  ><input
+                    type="range"
+                    id="soundStationVolume"
+                    min="0"
+                    max="100"
+                    value="70"
+                    aria-label="All aboard volume"
+                  /><output id="soundStationValue">70%</output
+                  ><button
+                    type="button"
+                    class="small-button sound-play"
+                    data-play-sound="station"
+                    aria-label="Play all aboard sound"
+                  >
+                    Play
+                  </button>
+                </div>
+              </div>
+            </fieldset>
+          </details>
         </div>
         <div class="sidebar-bottom">MADE FOR GOOD COMPANY <span>✣</span></div>
       </aside>

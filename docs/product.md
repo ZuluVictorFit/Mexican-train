@@ -68,6 +68,12 @@ controls sit in the hand header. Long routes have both expand and condense
 controls on the board, and pinch gestures zoom the table on supported touch
 devices. Player choices and game rules are otherwise unchanged.
 
+Sound settings are local to each player. A turn-ending toot can be enabled
+separately from the train-up sound, which can be off, a short chug-and-whistle,
+or a longer "all aboard" departure. Every sound has its own volume and a Play
+button that works even when its automatic cue is off. Train-up cues also apply
+when the community train starts. Reconnection does not replay old events.
+
 ## Recommended first-version boundaries (not yet approved)
 
 Anonymous display names, private unlisted rooms, 2–6 human players, a double-12

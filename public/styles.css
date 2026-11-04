@@ -1248,6 +1248,53 @@ kbd {
   font-size: 11px;
   color: #5f7463;
 }
+.sound-panel {
+  margin-top: 16px;
+  color: #415a49;
+  font-size: 11px;
+}
+.sound-panel summary {
+  font-weight: 700;
+  cursor: pointer;
+}
+.sound-row {
+  margin-top: 9px;
+}
+.sound-row > label,
+.train-sound-options > label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sound-volume {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+.sound-volume input[type="range"] {
+  min-width: 35px;
+  width: 100%;
+  flex: 1;
+}
+.sound-volume output {
+  min-width: 28px;
+  font-size: 10px;
+}
+.sound-play {
+  flex-shrink: 0;
+  padding: 5px 7px;
+}
+.train-sound-options {
+  border: 0;
+  padding: 0;
+  margin: 13px 0 0;
+  min-width: 0;
+}
+.train-sound-options legend {
+  font-weight: 700;
+  padding: 0 0 4px;
+}
 .board-tracks {
   position: absolute;
   inset: 0;

@@ -157,6 +157,22 @@ db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
     commands: {},
   }),
 );
+const soundGame = newGame(seats, 12, () => 0);
+soundGame.turn = 0;
+soundGame.players[0].hand = [t(2, 3)];
+soundGame.players[1].hand = [t(4, 5)];
+soundGame.boneyard = [t(1, 4), t(3, 5), t(2, 8)];
+db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+  "TEST29",
+  JSON.stringify({
+    code: "TEST29",
+    host: "seat0",
+    seats,
+    revision: 0,
+    game: soundGame,
+    commands: {},
+  }),
+);
 const sixSeats = Array.from({ length: 6 }, (_, i) => ({
   id: `seat${i}`,
   session: i < 2 ? sessions[i] : String(i).repeat(48),
@@ -766,7 +782,181 @@ try {
   await pv.locator('.train-line [data-train="p:seat0"]').click();
   await pv.waitForSelector('.rail-domino[data-tile="6-8"]');
   assert.equal(await pv.locator(".double-pending").count(), 0);
+  const decoded = await pv.evaluate(async () => {
+    const audio = new AudioContext();
+    const result = [];
+    for (const name of ["turn-toot", "train-chug", "all-aboard"]) {
+      const response = await fetch(`/audio/${name}.mp3`);
+      const sound = await audio.decodeAudioData(await response.arrayBuffer());
+      let peak = 0;
+      for (const sample of sound.getChannelData(0))
+        peak = Math.max(peak, Math.abs(sample));
+      result.push({ duration: sound.duration, peak });
+    }
+    await audio.close();
+    return result;
+  });
+  assert(decoded.every((sound) => sound.peak > 0.1 && sound.duration > 0.5));
+  assert(decoded[2].duration > decoded[1].duration);
   await cv.close();
+
+  const soundContext = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+  });
+  await soundContext.addCookies([
+    { name: "mt_session", value: sessions[0], url },
+  ]);
+  await soundContext.addInitScript(() => {
+    window.__soundStarts = [];
+    window.__soundGains = [];
+    window.__soundStops = 0;
+    class FakeAudioContext {
+      constructor() {
+        this.state = "running";
+        this.currentTime = 10;
+        this.destination = {};
+      }
+      resume() {
+        this.state = "running";
+        return Promise.resolve();
+      }
+      decodeAudioData() {
+        return Promise.resolve({});
+      }
+      createGain() {
+        const node = { gain: { value: 0 }, connect() {} };
+        window.__soundGains.push(node);
+        return node;
+      }
+      createBufferSource() {
+        return {
+          connect(gain) {
+            this.gain = gain;
+          },
+          stop() {
+            window.__soundStops++;
+          },
+          start(time) {
+            window.__soundStarts.push({ volume: this.gain.gain.value, time });
+          },
+        };
+      }
+    }
+    window.AudioContext = FakeAudioContext;
+    window.webkitAudioContext = FakeAudioContext;
+  });
+  const soundPage = await soundContext.newPage();
+  await soundPage.goto(url);
+  await soundPage.evaluate(() =>
+    localStorage.setItem("mexican-train-room", "TEST29"),
+  );
+  await soundPage.reload();
+  await soundPage.waitForSelector("#gameArea:not([hidden])");
+  assert.equal(await soundPage.locator("#soundTurnEnabled").isChecked(), false);
+  assert.equal(
+    await soundPage
+      .locator('input[name="trainSound"][value="off"]')
+      .isChecked(),
+    true,
+  );
+  for (const [slider, volume, button, expected] of [
+    ["#soundTurnVolume", "12", '[data-play-sound="turn"]', 0.12],
+    ["#soundNormalVolume", "35", '[data-play-sound="normal"]', 0.35],
+    ["#soundStationVolume", "67", '[data-play-sound="station"]', 0.67],
+  ]) {
+    await soundPage.locator(slider).fill(volume);
+    const count = await soundPage.evaluate(() => window.__soundStarts.length);
+    await soundPage.locator(button).click();
+    await soundPage.waitForFunction(
+      (n) => window.__soundStarts.length > n,
+      count,
+    );
+    assert.equal(
+      await soundPage.evaluate(() => window.__soundStarts.at(-1).volume),
+      expected,
+    );
+  }
+  await soundPage.locator("#soundStationVolume").fill("45");
+  assert.equal(
+    await soundPage.evaluate(() => window.__soundGains.at(-1).gain.value),
+    0.45,
+  );
+  await soundPage.locator("#soundStationVolume").fill("67");
+  await soundPage.locator("#soundTurnEnabled").check();
+  await soundPage.locator('input[name="trainSound"][value="normal"]').check();
+  let count = await soundPage.evaluate(() => window.__soundStarts.length);
+  await soundPage.locator("#drawButton").click();
+  await soundPage.waitForSelector("#endOpening:not([hidden])");
+  await soundPage.locator("#endOpening").click();
+  await soundPage.waitForFunction(
+    (n) => window.__soundStarts.length >= n + 2,
+    count,
+  );
+  let automatic = await soundPage.evaluate(
+    (n) => window.__soundStarts.slice(n),
+    count,
+  );
+  assert(automatic.some((s) => s.volume === 0.12 && s.time === 10));
+  assert(automatic.some((s) => s.volume === 0.35 && s.time === 10.85));
+  await soundPage.locator('input[name="trainSound"][value="station"]').check();
+  const otherSoundContext = await browser.newContext({
+    viewport: { width: 1024, height: 768 },
+  });
+  await otherSoundContext.addCookies([
+    { name: "mt_session", value: sessions[1], url },
+  ]);
+  const otherSoundPage = await otherSoundContext.newPage();
+  await otherSoundPage.goto(url);
+  await otherSoundPage.evaluate(() =>
+    localStorage.setItem("mexican-train-room", "TEST29"),
+  );
+  await otherSoundPage.reload();
+  await otherSoundPage.waitForSelector("#gameArea:not([hidden])");
+  count = await soundPage.evaluate(() => window.__soundStarts.length);
+  await otherSoundPage.locator("#drawButton").click();
+  await otherSoundPage.waitForSelector("#endOpening:not([hidden])");
+  await otherSoundPage.locator("#endOpening").click();
+  await soundPage.waitForFunction(
+    (n) => window.__soundStarts.length >= n + 2,
+    count,
+  );
+  automatic = await soundPage.evaluate(
+    (n) => window.__soundStarts.slice(n),
+    count,
+  );
+  assert(automatic.some((s) => s.volume === 0.67 && s.time === 10.85));
+  await soundPage.reload();
+  await soundPage.waitForSelector("#gameArea:not([hidden])");
+  assert(await soundPage.locator("#soundTurnEnabled").isChecked());
+  assert(
+    await soundPage
+      .locator('input[name="trainSound"][value="station"]')
+      .isChecked(),
+  );
+  assert.equal(
+    await soundPage.locator("#soundStationVolume").inputValue(),
+    "67",
+  );
+  assert.equal(await soundPage.evaluate(() => window.__soundStarts.length), 0);
+  await soundPage.locator("#soundTurnEnabled").uncheck();
+  await soundPage.locator('input[name="trainSound"][value="off"]').check();
+  await soundPage.locator("#drawButton").click();
+  await soundPage.waitForSelector("#endOpening:not([hidden])");
+  await soundPage.locator("#endOpening").click();
+  await soundPage.waitForFunction(
+    () => document.querySelector("#turnLabel").textContent !== "Your turn",
+  );
+  assert.equal(await soundPage.evaluate(() => window.__soundStarts.length), 0);
+  if (process.env.SOUND_SCREENSHOT)
+    await soundPage.screenshot({
+      path: process.env.SOUND_SCREENSHOT,
+      fullPage: true,
+    });
+  await otherSoundContext.close();
+  await soundContext.close();
+  console.log(
+    "Sound previews, individual volumes, automatic cues and silent reconnect passed.",
+  );
 } finally {
   await browser?.close();
   if (server.exitCode === null) {

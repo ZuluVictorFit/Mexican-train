@@ -45,6 +45,12 @@ Use the mouse wheel or zoom buttons, drag-to-pan, **Fit table**, and each train'
 you can then arrange them freely. **Fit hand** and **Restore view** change only
 the view, without rearranging tiles.
 
+Each player can choose their own sound settings in the sidebar. Turn endings
+have a separate toggle, and the train-up sound can be off, a short chug and
+whistle, or the longer "All aboard" departure. Each has its own volume and a
+Play button for previewing it even when automatic playback is off. Browsers may
+require an interaction with the page before playing automatic sounds.
+
 For the optional browser regression checks, install Playwright's Chromium once
 with `npx playwright install chromium`, then run `npm run test:browser`. To use
 an existing Chromium installation instead, set `CHROMIUM_PATH` to its executable.

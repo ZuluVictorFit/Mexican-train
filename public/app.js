@@ -1,5 +1,7 @@
 import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
 import { locomotiveModel } from "./locomotive.js";
+import { createSoundPlayer } from "./sounds.js";
+import { soundEvents } from "./sound-events.js";
 import {
   HAND_WORKSPACE_SCALE,
   initialHandLayout,
@@ -14,7 +16,13 @@ import {
     viewport = $("handViewport"),
     space = $("handSpace"),
     canvas = $("handCanvas");
-  let audioContext = null;
+  const soundPlayer = createSoundPlayer();
+  let ignoreNextSoundState = true;
+  let soundPrefs = {
+    turn: false,
+    train: "off",
+    volumes: { turn: 70, normal: 70, station: 70 },
+  };
   let room = null,
     socket = null,
     state = { tiles: [], endpoints: {} },
@@ -946,39 +954,22 @@ import {
     updateBoardView();
     updateSelection();
   }
-  function whistle() {
-    if (!$("soundToggle").checked || !audioContext) return;
-    try {
-      if (audioContext.state === "suspended") audioContext.resume();
-      const now = audioContext.currentTime,
-        gain = audioContext.createGain();
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.035, now + 0.08);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
-      gain.connect(audioContext.destination);
-      for (const hz of [220, 277]) {
-        const o = audioContext.createOscillator();
-        o.type = "triangle";
-        o.frequency.setValueAtTime(hz, now);
-        o.connect(gain);
-        o.start(now);
-        o.stop(now + 0.82);
-      }
-    } catch {}
-  }
   function render(r) {
     const previous = room;
     room = r;
-    if (previous?.game && r.game && previous.game.round === r.game.round) {
-      const old = previous.game;
-      const opened = r.game.players.some(
-        (p) => p.open && !old.players.find((q) => q.id === p.id)?.open,
-      );
-      const communityStarted =
-        !old.trains.community.tiles.length &&
-        r.game.trains.community.tiles.length > 0;
-      if (opened || communityStarted) whistle();
+    if (!ignoreNextSoundState) {
+      const events = soundEvents(previous, r);
+      const turnSound = events.includes("turn") && soundPrefs.turn;
+      if (turnSound) soundPlayer.play("turn", soundPrefs.volumes.turn);
+      if (events.includes("train") && soundPrefs.train !== "off")
+        soundPlayer.play(
+          soundPrefs.train,
+          soundPrefs.volumes[soundPrefs.train],
+          false,
+          turnSound ? 0.85 : 0,
+        );
     }
+    ignoreNextSoundState = false;
     localStorage.setItem("mexican-train-room", r.code);
     $("entry").hidden = true;
     $("roomCode").textContent = r.code;
@@ -1374,28 +1365,76 @@ import {
       refresh(t);
     }
   });
-  $("soundToggle").checked =
-    localStorage.getItem("mexican-train-sound") === "on";
-  $("soundToggle").addEventListener("change", () => {
-    localStorage.setItem(
-      "mexican-train-sound",
-      $("soundToggle").checked ? "on" : "off",
-    );
-    if ($("soundToggle").checked) {
-      try {
-        audioContext ||= new (window.AudioContext ||
-          window.webkitAudioContext)();
-        audioContext.resume();
-      } catch {
-        tell("Audio is not available in this browser.");
+  const soundKey = "mexican-train-sound-settings";
+  try {
+    const saved = JSON.parse(localStorage.getItem(soundKey) || "null");
+    if (saved && typeof saved === "object") {
+      soundPrefs.turn = saved.turn === true;
+      if (["off", "normal", "station"].includes(saved.train))
+        soundPrefs.train = saved.train;
+      for (const name of ["turn", "normal", "station"]) {
+        const value = Number(saved.volumes?.[name]);
+        if (Number.isFinite(value))
+          soundPrefs.volumes[name] = Math.max(0, Math.min(100, value));
       }
+    } else if (localStorage.getItem("mexican-train-sound") === "on") {
+      soundPrefs.turn = true;
+      soundPrefs.train = "normal";
     }
-  });
-  function activateAudio() {
-    if (!$("soundToggle").checked) return;
+  } catch {}
+  const volumeControls = { turn: "Turn", normal: "Normal", station: "Station" };
+  $("soundTurnEnabled").checked = soundPrefs.turn;
+  document.querySelector(
+    `input[name="trainSound"][value="${soundPrefs.train}"]`,
+  ).checked = true;
+  for (const [name, suffix] of Object.entries(volumeControls)) {
+    const slider = $(`sound${suffix}Volume`),
+      output = $(`sound${suffix}Value`);
+    slider.value = soundPrefs.volumes[name];
+    soundPlayer.setVolume(name, soundPrefs.volumes[name]);
+    output.value = `${slider.value}%`;
+    slider.addEventListener("input", () => {
+      soundPrefs.volumes[name] = Number(slider.value);
+      soundPlayer.setVolume(name, soundPrefs.volumes[name]);
+      output.value = `${slider.value}%`;
+      saveSoundSettings();
+    });
+  }
+  function saveSoundSettings() {
     try {
-      audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-      if (audioContext.state === "suspended") audioContext.resume();
+      localStorage.setItem(soundKey, JSON.stringify(soundPrefs));
+    } catch {}
+  }
+  $("soundTurnEnabled").addEventListener("change", () => {
+    soundPrefs.turn = $("soundTurnEnabled").checked;
+    if (!soundPrefs.turn) soundPlayer.stop("turn");
+    saveSoundSettings();
+    activateAudio();
+  });
+  for (const input of document.querySelectorAll('input[name="trainSound"]'))
+    input.addEventListener("change", () => {
+      if (!input.checked) return;
+      if (soundPrefs.train !== input.value && soundPrefs.train !== "off")
+        soundPlayer.stop(soundPrefs.train);
+      soundPrefs.train = input.value;
+      saveSoundSettings();
+      activateAudio();
+    });
+  for (const button of document.querySelectorAll("[data-play-sound]"))
+    button.addEventListener("click", async () => {
+      const name = button.dataset.playSound;
+      const played = await soundPlayer.play(
+        name,
+        soundPrefs.volumes[name],
+        true,
+      );
+      if (!played)
+        tell("Could not play that sound. Check your browser audio settings.");
+    });
+  function activateAudio() {
+    if (!soundPrefs.turn && soundPrefs.train === "off") return;
+    try {
+      if (soundPlayer.unlock()) soundPlayer.preload();
     } catch {}
   }
   document.addEventListener("pointerdown", activateAudio);
@@ -1413,13 +1452,17 @@ import {
         $("gameArea").hidden = true;
       });
       socket.on("connect", () => {
+        ignoreNextSoundState = true;
         const code = localStorage.getItem("mexican-train-room");
         if (code)
           socket.emit("resume", { code }, (r) => {
             if (!r?.ok) localStorage.removeItem("mexican-train-room");
           });
       });
-      socket.on("disconnect", () => tell("Connection lost. Reconnecting…"));
+      socket.on("disconnect", () => {
+        ignoreNextSoundState = true;
+        tell("Connection lost. Reconnecting…");
+      });
       socket.on("connect_error", () => {
         $("entryError").textContent =
           "Could not connect to the game server. Retrying…";

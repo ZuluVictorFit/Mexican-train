@@ -1,0 +1,11 @@
+# Optional early playtest deployment. Free services have ephemeral storage;
+# an instance restart can erase game.sqlite. Use durable storage before relying
+# on this for games that must survive restarts.
+services:
+  - type: web
+    name: mexican-train
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health

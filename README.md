@@ -4,9 +4,10 @@ A private browser game for friends: one player hosts, others join with a code.
 The signature interaction is a private, freely arranged domino hand alongside a
 table that moves from a seated perspective to a clear playing view.
 
-**Stage: product design and a local interaction prototype.** Desktop and tablet
-first; 2–6 players. The prototype explores the hand and table; the multiplayer
-game and its rules engine have not been built.
+**Stage: local multiplayer build.** Desktop and tablet first; 2–6 players. The
+server implements private rooms and the selected house rules. The public GitHub
+Pages site still hosts the earlier static interaction prototype; it does not run
+the multiplayer server.
 
 ## Start here
 
@@ -21,7 +22,26 @@ game and its rules engine have not been built.
 These documents distinguish user-confirmed requirements from recommendations.
 Resolve the core interaction and rules questions before scaffolding the game.
 
-## Try the interaction prototype
+## Run the multiplayer build
+
+Install Node.js 24 or later. From the repository root, run:
+
+```sh
+npm ci
+npm start
+```
+
+Open `http://127.0.0.1:3000` in a browser on the same machine. To try two players
+locally, open a normal and a private/incognito browser window, create a table in
+one, and join with its code in the other. Multiple windows sharing one browser
+profile share a seat. Run `npm test` for the rules and server tests.
+
+The server uses `game.sqlite` in its working directory. Set `DATA_PATH` to a
+durable writable location when hosting. The database contains private hands and
+session credentials; do not publish or commit it. `PORT` controls the listening
+port. A single server instance is supported. See [deployment notes](docs/deployment.md).
+
+## Try the earlier interaction prototype
 
 To run it on your own computer, download the repository files, open the
 `prototype` folder, and double-click `index.html`. Keep `styles.css` and `app.js`

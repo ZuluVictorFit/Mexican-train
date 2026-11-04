@@ -1,7 +1,7 @@
 # Build sequence
 
-Status: planning and a local interaction prototype; no production game yet.
-Complete each gate before expanding the implementation.
+Status: the rules and private-room flow are implemented and being tested locally;
+the multiplayer build is not yet hosted online. Complete each gate before release.
 Save decisions here so later tasks can reference a small relevant document.
 
 | Stage | Deliverable | Gate |

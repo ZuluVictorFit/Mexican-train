@@ -1,36 +1,39 @@
 # Proposed technical approach
 
-Status: recommendation, not scaffolded or deployed. Optimize for a private
-six-person game and testable rules; no third-party accounts required locally.
+Status: a first local multiplayer implementation exists; online hosting is not
+yet configured. Optimize for a private six-person game and testable rules; no
+third-party accounts are required locally.
 
 ## Stack and boundaries
 
 | Layer | Recommendation | Reason |
 | --- | --- | --- |
-| Language/tooling | TypeScript, Node 24 LTS, npm workspaces with a committed lockfile | One language across rules, client, and server; available runtime matches. |
-| Client | React + Vite | Straightforward UI and a fast isolated interaction prototype. |
+| Language/tooling | JavaScript, Node 24, npm with a committed lockfile | Reuses the tested interaction study and runs without a compile step. |
+| Client | Vanilla browser JavaScript | Reuses the existing hand interactions; the earlier React/Vite choice remains optional. |
 | Table | SVG routes and tiles inside a CSS-transformed board layer | Precise endpoints and camera projection without a full 3D engine. |
 | Private hand | DOM/SVG tile faces with Pointer Events and continuous CSS transforms | Touch/keyboard access, arbitrary placement, predictable hit targets. |
-| Multiplayer | One Node HTTP service + Socket.IO; same-origin client in production | Simple authoritative rooms and reconnect transport. |
-| Rules | Pure shared TypeScript package with runtime-validated commands | Deterministic tests; server always revalidates client intentions. |
+| Multiplayer | Express + Socket.IO on one Node HTTP service | Server-authoritative rooms and reconnect transport. |
+| Rules | Isolated JavaScript module with server-validated commands | Deterministic tests; server always revalidates client intentions. |
 | Persistence | SQLite on a persistent volume for one server instance | Small operational footprint; transactional game snapshots and recovery. |
-| Verification | Vitest for engine; Playwright for browser/touch/multiplayer | Tests the actual risky behaviors. |
+| Verification | Node test runner; browser checks for interaction and multiplayer | Tests the actual risky behaviors. |
 
 Do not add Three.js, Redis, a separate API platform, or a second server language
 unless the camera prototype or hosting constraints justify it. Validate CSS/SVG
 projection and hit-testing on a real tablet before committing to this renderer.
 Use original procedural tile/hub art; concept images are not UI sprite sheets.
 
-Proposed future structure:
+Current structure:
 
 ```text
-apps/web/          React UI, table/hand input, local hand layouts
-apps/server/       room/session lifecycle, commands, persistence, broadcasts
-packages/rules/    pure game state, rules/config, legal moves, scoring
-packages/protocol/ validated public/private messages and schema versions
+public/            game UI, table/hand input, local hand layouts
+server/game.js     game state, rules, legal moves, scoring
+server/index.js    room/session lifecycle, persistence, broadcasts
+test/              rules and multiplayer server tests
+prototype/         earlier static interaction study
 ```
 
-This structure is intentionally not created until the user requests the build.
+The protocol currently lives alongside the server. Split it into packages if the
+project grows; it is not necessary to scaffold a monorepo for the first build.
 
 ## Theme boundary (future requirement, no holiday implementation now)
 
@@ -128,11 +131,8 @@ highlight authorize a move.
 Audio and future emotes consume accepted event IDs and deduplicate on the client.
 Do not replay old train horns after reconnect. Keep effects separate from rules.
 
-## Local workflow once implementation is authorized
+## Local workflow
 
-Scaffold workspaces, pin the runtime/package versions, install and lock dependencies,
-then use `npm ci` for repeatable setup. Define scripts for dev, build, typecheck,
-engine tests, and browser checks when those targets exist. A future environment
-install script should run actual required setup; a start skill should document the
-real server/client commands and a functional readiness request. No placeholder
-commands or fictitious passing tests are provided now.
+Run `npm ci`, `npm start`, and `npm test` from the repository root. The client is
+static and is served by the same Node process, so it has no separate build step.
+Browser interaction tests performed during development are separate from `npm test`.

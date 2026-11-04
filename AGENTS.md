@@ -1,9 +1,8 @@
 # Project working instructions
 
-- This project is in design/planning with an authorized local interaction study
-  in `prototype/`. Do not treat it as the production game or build the full game
-  until the user requests that work. Research, specifications, and visual concepts
-  remain part of the current work.
+- The user has authorized the multiplayer build. `prototype/` is the earlier
+  standalone interaction study; the Node server and current client live in
+  `server/` and `public/`. Keep the public prototype distinct from the game.
 - Read `docs/product.md` and the relevant design/rules document first. Treat
   confirmed decisions as requirements; recommendations remain proposals.
 - Use this existing checkout. Cloud tasks are already isolated; do not create

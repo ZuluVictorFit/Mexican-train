@@ -45,6 +45,11 @@ Planning date: November 3, 2026 (user timezone). Status: pre-build.
 | Future themes           | Plan for interchangeable themes, including holidays; do not build holiday themes now.                                                                                                                                                                                                                                                                                      |
 | Hand space              | A full-screen hand workspace can be opened and closed, with enough room to arrange long chains freely; it remains optional.                                                                                                                                                                                                                                                |
 
+An open personal train displays its player's colored locomotive marker at the
+hub. The community train has a marker at its hub position, including before
+its first tile is played. The personal marker disappears when the owner closes
+their train by playing on it.
+
 ## Recommended first-version boundaries (not yet approved)
 
 Anonymous display names, private unlisted rooms, 2–6 human players, a double-12

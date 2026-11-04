@@ -614,6 +614,50 @@ import {
       hub.append(num);
     }
     svg.append(hub);
+    // The markers sit on the hub at the start of each route, independent of
+    // how far the train has grown. They are visual only and never block input.
+    for (const train of table.trains) {
+      if (train.key !== "community" && !train.open) continue;
+      const radians = (train.angle * Math.PI) / 180;
+      const marker = svgElement("g", {
+        class: "hub-train-marker",
+        "data-train-marker": train.key,
+        transform: `translate(${52 * Math.cos(radians)} ${52 * Math.sin(radians)}) rotate(${train.angle})`,
+        role: "img",
+        "aria-label":
+          train.key === "community"
+            ? "Community train"
+            : `${train.name} is open`,
+        "pointer-events": "none",
+      });
+      marker.append(
+        svgElement("circle", {
+          r: 13,
+          fill: "var(--marker-background, #352a21)",
+          stroke: "var(--marker-border, #fff1cd)",
+          "stroke-width": 1.5,
+        }),
+      );
+      marker.append(
+        svgElement("path", {
+          d: "M-9 -1v-5h6v2h6v-3h3v3h2v7H-9z",
+          fill: train.color,
+          stroke: "var(--marker-border, #fff1cd)",
+          "stroke-width": 1,
+          "stroke-linejoin": "round",
+        }),
+      );
+      for (const x of [-6, 1, 6])
+        marker.append(
+          svgElement("circle", {
+            cx: x,
+            cy: 4,
+            r: 2,
+            fill: "var(--marker-border, #fff1cd)",
+          }),
+        );
+      svg.append(marker);
+    }
     for (const train of table.trains) {
       for (const piece of train.dominoes) {
         const group = svgElement("g", {

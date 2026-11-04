@@ -180,6 +180,8 @@ try {
     );
     await p.reload();
     await p.waitForSelector("#gameArea:not([hidden])");
+    assert.equal(await p.locator('[data-train-marker="community"]').count(), 1);
+    assert.equal(await p.locator('[data-train-marker="p:seat0"]').count(), 0);
     const initialViewport = await p.locator("#handViewport").boundingBox();
     for (const item of await p.locator(".domino").all()) {
       const bounds = await item.boundingBox();
@@ -260,6 +262,12 @@ try {
       await p.waitForFunction(() =>
         document.querySelector("#turnLabel").textContent.includes("Morgan"),
       );
+      assert.equal(await p.locator('[data-train-marker="p:seat0"]').count(), 1);
+      await otherPage.waitForSelector('[data-train-marker="p:seat0"]');
+      assert.equal(
+        await otherPage.locator('[data-train-marker="p:seat0"]').count(),
+        1,
+      );
       assert.match(await p.locator("#turnLabel").textContent(), /Morgan/);
       await otherPage.waitForFunction(
         () => document.querySelector("#turnLabel").textContent === "Your turn",
@@ -270,6 +278,14 @@ try {
       await otherPage.click("#endOpening");
       await p.waitForFunction(
         () => document.querySelector("#turnLabel").textContent === "Your turn",
+      );
+      await p.locator('[data-id="0-12"]').click();
+      await p.locator('.endpoint[data-train="p:seat0"]').click();
+      await p.waitForSelector('.rail-domino[data-tile="0-12"]');
+      assert.equal(await p.locator('[data-train-marker="p:seat0"]').count(), 0);
+      assert.equal(
+        await p.locator('[data-train-marker="community"]').count(),
+        1,
       );
     }
     assert.deepEqual(errs, []);

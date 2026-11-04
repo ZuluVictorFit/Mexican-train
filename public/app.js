@@ -1,5 +1,9 @@
 import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
-import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
+import {
+  HAND_WORKSPACE_SCALE,
+  initialHandLayout,
+  nextHandPosition,
+} from "./hand-layout.js";
 
 (() => {
   "use strict";
@@ -19,6 +23,7 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
     camera = false,
     drag = null,
     timer,
+    turnHintTimer,
     layoutKey = "",
     latestDraw = null,
     lastDrawNotice = "",
@@ -188,7 +193,6 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
   function select(id) {
     selected = id;
     updateSelection();
-    ensureLegalTargetsVisible();
   }
   function refresh(t) {
     const el = [...canvas.children].find((e) => e.dataset.id === t.id);
@@ -283,19 +287,12 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
       el.classList.toggle("selected", on);
       el.setAttribute("aria-pressed", String(on));
     }
-    const playable = t && room?.game?.legal.some((m) => m.tile === t.id);
-    $("playButton").disabled = !playable || camera;
+    $("playButton").disabled = !t || camera || room?.game?.turn !== room?.me;
     $("flipButton").disabled = !t;
     $("rotateButton").disabled = !t;
-    for (const el of document.querySelectorAll("[data-train]")) {
-      const on = !camera && legal(t, el.dataset.train);
-      el.classList.toggle("valid", !!on);
-      if (el.classList.contains("endpoint"))
-        el.classList.toggle("invalid", !!t && !on);
-    }
     $("boardCaption").textContent = t
-      ? `${faces(t).join(" | ")} selected · choose a glowing train`
-      : "Select a tile to see where it can go.";
+      ? `${faces(t).join(" | ")} selected · choose a train`
+      : "Select a tile and choose a train.";
   }
   function startDrag(e) {
     if (e.button !== 0 || drag) return;
@@ -485,39 +482,6 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
     boardView.zoom = Math.max(1, Math.min(32, boardView.radius / 230));
     boardView.x = train.target.x * factor;
     boardView.y = train.target.y * factor;
-  }
-  function ensureLegalTargetsVisible() {
-    if (camera || !boardView.svg || !room?.game || !selected) return;
-    const keys = [
-      ...new Set(
-        room.game.legal
-          .filter((move) => move.tile === selected)
-          .map((move) => move.train),
-      ),
-    ];
-    const trains = (boardView.trains || []).filter((train) =>
-      keys.includes(train.key),
-    );
-    if (!trains.length) return;
-    const aspect =
-      $("board").clientWidth / Math.max(1, $("board").clientHeight);
-    const halfHeight = boardView.radius / boardView.zoom;
-    const halfWidth = halfHeight * aspect;
-    const outside = trains.some(
-      (train) =>
-        Math.abs(train.target.x - boardView.x) + 25 > halfWidth ||
-        Math.abs(train.target.y - boardView.y) + 25 > halfHeight,
-    );
-    if (!outside) return;
-    boardView.manual = true;
-    if (trains.length === 1) {
-      boardView.fitActive = false;
-      focusTrainEnd(trains[0]);
-    } else {
-      boardView.fitActive = true;
-      boardView.zoom = 1;
-    }
-    updateBoardView();
   }
   function board(g) {
     document
@@ -909,10 +873,7 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
     if (drawnTile) {
       latestDraw = drawnTile.id;
       selected = drawnTile.id;
-      lastDrawNotice =
-        g.turn === r.me && g.drawn === drawnTile.id
-          ? `You drew ${drawnTile.a} | ${drawnTile.b}. Play the highlighted tile on a glowing train.`
-          : `You drew ${drawnTile.a} | ${drawnTile.b}. It could not be played, so your train is open and your turn ended.`;
+      lastDrawNotice = `You drew ${drawnTile.a} | ${drawnTile.b}.`;
     } else if (g.drawn && tile(g.drawn)) {
       latestDraw = g.drawn;
       selected = g.drawn;
@@ -966,17 +927,44 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
     document.querySelector(".player-count").textContent =
       `${g.players.length} PLAYERS`;
     const myTurn = g.phase === "playing" && g.turn === r.me;
-    $("drawButton").disabled =
-      !myTurn || g.legal.length > 0 || !!(g.openingPlayed && !g.pending);
-    $("drawButton").textContent = g.boneyard ? "Draw" : "Pass";
+    if (!myTurn) {
+      clearTimeout(turnHintTimer);
+      turnHintTimer = null;
+    } else if (
+      !wasMyTurn ||
+      !sameRound ||
+      previous?.game?.phase !== "playing"
+    ) {
+      clearTimeout(turnHintTimer);
+      const hintRound = g.round;
+      turnHintTimer = setTimeout(() => {
+        const current = room?.game;
+        if (
+          current?.phase === "playing" &&
+          current.turn === room.me &&
+          current.round === hintRound &&
+          !current.drawn &&
+          !current.openingPlayed
+        )
+          tell("If you can't play, remember you can draw from the boneyard.");
+      }, 30000);
+    }
+    $("drawButton").disabled = !myTurn || !g.boneyard || g.drewThisTurn;
+    $("drawButton").textContent = "Draw";
     $("drawButton").title = !myTurn
       ? "Wait for your turn"
-      : g.legal.length
-        ? "Play a matching tile"
-        : g.openingPlayed && !g.pending
-          ? "End your opening turn"
+      : g.drewThisTurn
+        ? "Already drew this turn"
+        : !g.boneyard
+          ? "The boneyard is empty"
           : "";
-    $("endOpening").hidden = !(myTurn && g.openingPlayed && !g.pending);
+    $("endOpening").hidden =
+      !myTurn ||
+      !(g.drewThisTurn || !g.boneyard || (g.openingPlayed && !g.pending));
+    $("endOpening").textContent =
+      g.openingPlayed && !g.pending && !g.drawn
+        ? "End opening turn"
+        : "End turn";
     $("nextRound").hidden = !(g.phase === "round-end" && r.host === r.me);
     $("rematch").hidden = !(g.phase === "finished" && r.host === r.me);
     $("leaveGame").hidden = g.phase !== "finished";
@@ -994,23 +982,15 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
       g.phase !== "playing"
         ? $("gameMessage").textContent
         : myTurn && drawn
-          ? `You drew ${drawn.a} | ${drawn.b}. Play the highlighted tile on a glowing train.`
-          : myTurn && g.pending && !g.legal.length
-            ? g.boneyard
-              ? "You cannot cover the double. Draw one tile."
-              : "You cannot cover the double and the boneyard is empty. Pass."
-            : myTurn && g.pending
-              ? "Cover the exposed double with a matching tile."
-              : myTurn && g.openingPlayed
-                ? "Keep building your train, or choose End opening turn when you are done."
-                : myTurn && !g.legal.length
-                  ? g.boneyard
-                    ? "You have no playable tile. Draw one tile."
-                    : "You have no playable tile and the boneyard is empty. Pass."
-                  : myTurn
-                    ? "Your turn: select a tile and choose a glowing train."
-                    : lastDrawNotice ||
-                      `Waiting for ${turnPlayer?.name || "the next player"}.`;
+          ? `You drew ${drawn.a} | ${drawn.b}. Play a tile or end your turn.`
+          : myTurn && g.pending
+            ? "Cover the exposed double with a matching tile."
+            : myTurn && g.openingPlayed
+              ? "Keep building your train, or choose End opening turn when you are done."
+              : myTurn
+                ? "Your turn: select a tile and choose a train."
+                : lastDrawNotice ||
+                  `Waiting for ${turnPlayer?.name || "the next player"}.`;
     const results = $("roundResults");
     results.replaceChildren();
     if (g.phase !== "playing" && g.results.length) {
@@ -1028,7 +1008,6 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
     renderHand();
     board(g);
     if (drawnTile || (!sameRound && g.drawn)) {
-      ensureLegalTargetsVisible();
       revealHandTile(latestDraw);
       if (drawnTile) tell(lastDrawNotice);
     }
@@ -1091,11 +1070,13 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
     const bottom = Math.max(
       ...state.tiles.map((t) => t.y + (t.rotation % 180 ? 50 : 26)),
     );
-    const nextScale = Math.min(
-      1,
-      (viewport.clientWidth - 8) / right,
-      (viewport.clientHeight - 8) / bottom,
-    );
+    const nextScale =
+      HAND_WORKSPACE_SCALE *
+      Math.min(
+        1,
+        (viewport.clientWidth - 8) / right,
+        (viewport.clientHeight - 8) / bottom,
+      );
     if (nextScale > 0 && Math.abs(nextScale - scale) > 0.001) {
       scale = nextScale;
       updateSize();
@@ -1154,9 +1135,7 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
     send("start", { code: room.code, engine: $("engineInput").value }),
   );
   $("drawButton").addEventListener("click", () => move({ type: "draw" }));
-  $("endOpening").addEventListener("click", () =>
-    move({ type: "end-opening" }),
-  );
+  $("endOpening").addEventListener("click", () => move({ type: "end-turn" }));
   $("nextRound").addEventListener("click", () =>
     send("next-round", { code: room.code }),
   );
@@ -1171,7 +1150,7 @@ import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
   $("fitButton").addEventListener("click", fitHand);
   $("playButton").addEventListener("click", () => {
     if (fullscreen) setFullscreen(false);
-    tell("Choose a glowing train.");
+    tell("Choose a train.");
   });
   $("cameraButton").addEventListener("click", () => {
     camera = !camera;

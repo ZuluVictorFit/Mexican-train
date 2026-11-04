@@ -24,9 +24,10 @@ test("staggered matching halves connect without overlap, including sideways doub
       close(train.dominoes[i - 1].end.y, train.dominoes[i].start.y);
       assert.equal(tiles[i - 1].b, tiles[i].a);
     }
-    assert.equal(train.dominoes[0].length, TILE_WIDTH);
-    assert.equal(train.dominoes[1].length, TILE_LENGTH);
-    assert.equal(train.dominoes[1].angle, angle);
+    assert.equal(train.dominoes[0].length, TILE_LENGTH);
+    assert.equal(train.dominoes[0].angle, angle);
+    assert.equal(train.dominoes[1].length, TILE_WIDTH);
+    assert.equal(train.dominoes[1].angle, angle + 90);
     for (let i = 1; i < train.dominoes.length; i++) {
       const before = train.dominoes[i - 1],
         after = train.dominoes[i];
@@ -78,6 +79,20 @@ test("a staggered 15-tile train fits in much less outward space than a straight 
     train.dominoes[1].center.y,
     "alternate tiles must be visibly staggered",
   );
+  close(train.dominoes[0].center.y, train.dominoes[2].center.y);
+  for (let i = 0; i < train.dominoes.length; i++) {
+    assert.equal(train.dominoes[i].angle, 0, "ordinary tiles stay lengthwise");
+    if (i) {
+      close(
+        train.dominoes[i].center.x - train.dominoes[i - 1].center.x,
+        TILE_LENGTH / 2,
+      );
+      close(
+        Math.abs(train.dominoes[i].center.y - train.dominoes[i - 1].center.y),
+        TILE_WIDTH,
+      );
+    }
+  }
 });
 test("six personal trains and one community train have distinct directions and all long-train tiles", () => {
   const lanes = Array.from({ length: 7 }, (_, i) => ({

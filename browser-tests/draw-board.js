@@ -36,6 +36,7 @@ for (const [code, draw] of [
   const g = newGame(seats, 12, () => 0);
   g.turn = 0;
   g.players[0].hand = structuredClone(hand);
+  if (code === "TEST24") g.players[0].hand[11] = t(0, 12); // A playable tile can be overlooked.
   g.players[1].hand = [t(2, 12), t(5, 6)];
   g.boneyard = [draw, t(2, 8)];
   db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
@@ -211,10 +212,7 @@ try {
       await otherPage.waitForSelector("#gameArea:not([hidden])");
     }
     assert(await p.locator("#drawButton").isEnabled());
-    assert.match(
-      await p.locator("#actionBanner").textContent(),
-      /Draw one tile/,
-    );
+    assert.match(await p.locator("#actionBanner").textContent(), /Your turn/);
     await p.click("#drawButton");
     await p.waitForSelector(".domino.drawn");
     const drawn = p.locator(".domino.drawn");
@@ -232,11 +230,13 @@ try {
     if (match) {
       assert.match(
         await p.locator("#actionBanner").textContent(),
-        /Play the highlighted tile/,
+        /Play a tile or end your turn/,
       );
       assert(await drawn.evaluate((e) => e.classList.contains("selected")));
-      assert.equal(await p.locator(".endpoint.valid").count(), 1);
-      const target = await p.locator(".endpoint.valid").boundingBox();
+      assert.equal(await p.locator(".endpoint.valid").count(), 0);
+      const target = await p
+        .locator('.endpoint[data-train="p:seat0"]')
+        .boundingBox();
       await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
       await p.mouse.down();
       await p.mouse.move(
@@ -245,6 +245,7 @@ try {
         { steps: 12 },
       );
       await p.mouse.up();
+      await p.waitForSelector('.rail-domino[data-tile="1-12"]');
       await p.waitForSelector("#endOpening:not([hidden])");
       assert.match(
         await p.locator("#actionBanner").textContent(),
@@ -253,14 +254,18 @@ try {
     } else {
       assert.match(
         await p.locator("#actionBanner").textContent(),
-        /your train is open and your turn ended/,
+        /Play a tile or end your turn/,
+      );
+      await p.click("#endOpening");
+      await p.waitForFunction(() =>
+        document.querySelector("#turnLabel").textContent.includes("Morgan"),
       );
       assert.match(await p.locator("#turnLabel").textContent(), /Morgan/);
       await otherPage.waitForFunction(
         () => document.querySelector("#turnLabel").textContent === "Your turn",
       );
       await otherPage.locator('[data-id="2-12"]').click();
-      await otherPage.locator(".endpoint.valid").click();
+      await otherPage.locator('.endpoint[data-train="p:seat1"]').click();
       await otherPage.waitForSelector("#endOpening:not([hidden])");
       await otherPage.click("#endOpening");
       await p.waitForFunction(
@@ -271,8 +276,8 @@ try {
     console.log(
       code,
       match
-        ? "matching draw is highlighted and playable"
-        : "nonmatching draw visibly passes and opens train",
+        ? "matching draw remains playable without highlighted trains"
+        : "ending after a draw passes and opens train",
       "passed",
     );
     await otherContext?.close();
@@ -400,19 +405,7 @@ try {
     "touch dragging must pan the table",
   );
   await p.locator('[data-id="2-12"]').click();
-  const playableEnds = p.locator(".endpoint.valid");
-  assert.equal(await playableEnds.count(), 2);
-  const visibleBoard = await p.locator(".rail-board").boundingBox();
-  for (const end of await playableEnds.all()) {
-    const box = await end.boundingBox();
-    assert(
-      box.x >= visibleBoard.x - 2 &&
-        box.y >= visibleBoard.y - 2 &&
-        box.x + box.width <= visibleBoard.x + visibleBoard.width + 2 &&
-        box.y + box.height <= visibleBoard.y + visibleBoard.height + 2,
-      "selecting a tile must bring all playable endpoints into view",
-    );
-  }
+  assert.equal(await p.locator(".endpoint.valid").count(), 0);
   console.log(
     "All 13 dominoes render on the table; zoom, fit and focus passed.",
   );
@@ -550,23 +543,17 @@ try {
   await pv.reload();
   await pv.waitForSelector("#gameArea:not([hidden])");
   assert.equal(await pv.locator(".rail-domino").count(), 6);
+  if (process.env.BOARD_SCREENSHOT)
+    await pv.screenshot({ path: process.env.BOARD_SCREENSHOT });
   await pv.getByRole("button", { name: "Focus Morgan" }).click();
   for (let i = 0; i < 4; i++) await pv.click("#zoomIn");
   const remoteView = await pv.locator(".rail-board").getAttribute("viewBox");
   await pv.locator('[data-id="1-8"]').click();
-  assert.equal(await pv.locator(".endpoint.valid").count(), 1);
-  assert.notEqual(
+  assert.equal(await pv.locator(".endpoint.valid").count(), 0);
+  assert.equal(
     await pv.locator(".rail-board").getAttribute("viewBox"),
     remoteView,
-    "selecting a tile must reveal its single playable endpoint",
-  );
-  const ownEnd = await pv.locator(".endpoint.valid").boundingBox();
-  const visible = await pv.locator(".rail-board").boundingBox();
-  assert(
-    ownEnd.x >= visible.x &&
-      ownEnd.y >= visible.y &&
-      ownEnd.x + ownEnd.width <= visible.x + visible.width &&
-      ownEnd.y + ownEnd.height <= visible.y + visible.height,
+    "selecting a tile must not reveal its playable endpoint",
   );
   await cv.close();
 } finally {

@@ -5,12 +5,10 @@ export const TILE_WIDTH = 36;
 export const HUB_RADIUS = 66;
 
 export function layoutTrain(tiles, angle) {
-  // The train moves outward along its local x-axis. Ordinary dominoes alternate
-  // which half points toward the previous tile, creating a compact stagger.
-  // Each matching half shares a section of the boundary with its neighbor.
-  let cursor = HUB_RADIUS + 20;
-  let normalCount = 0;
-  let outgoingY = -TILE_WIDTH / 2 - 5;
+  // Lengthwise tiles alternate between parallel tracks. Consecutive matching
+  // halves meet along their side edges, halfway along each tile.
+  let last = null;
+  let side = 1;
   const radians = (angle * Math.PI) / 180;
   const point = (x, y) => ({
     x: Math.cos(radians) * x - Math.sin(radians) * y,
@@ -19,29 +17,47 @@ export function layoutTrain(tiles, angle) {
   const dominoes = [];
   for (const tile of tiles) {
     const isDouble = tile.a === tile.b;
-    const length = isDouble ? TILE_LENGTH : TILE_WIDTH;
-    const firstHalfOffset =
-      normalCount % 2 === 0 ? -TILE_WIDTH / 2 : TILE_WIDTH / 2;
-    const centerY = isDouble ? outgoingY : normalCount % 2 === 0 ? -5 : 5;
-    const incomingY = isDouble ? centerY : centerY + firstHalfOffset;
-    const nextOutgoingY = isDouble ? centerY : centerY - firstHalfOffset;
-    const sharedY = dominoes.length ? (outgoingY + incomingY) / 2 : incomingY;
-    const start = point(cursor, sharedY);
+    let x, y, joinX, joinY;
+    if (!last) {
+      x = HUB_RADIUS + 20 + (isDouble ? TILE_WIDTH : TILE_LENGTH) / 2;
+      y = 0;
+      joinX = HUB_RADIUS + 20;
+      joinY = 0;
+    } else if (!last.isDouble && !isDouble) {
+      x = last.x + TILE_LENGTH / 2;
+      y = last.y + side * TILE_WIDTH;
+      joinX = last.x + TILE_LENGTH / 4;
+      joinY = (last.y + y) / 2;
+      side *= -1;
+    } else {
+      x =
+        last.x +
+        (last.isDouble ? TILE_WIDTH : TILE_LENGTH) / 2 +
+        (isDouble ? TILE_WIDTH : TILE_LENGTH) / 2;
+      y = last.y + (last.isDouble && !isDouble ? TILE_LENGTH / 4 : 0);
+      joinX = last.x + (last.isDouble ? TILE_WIDTH : TILE_LENGTH) / 2;
+      joinY = last.isDouble
+        ? last.y + TILE_LENGTH / 4
+        : last.y - TILE_WIDTH / 4;
+      side = 1;
+    }
+    const start = point(joinX, joinY);
     if (dominoes.length) dominoes.at(-1).end = start;
-    const center = point(cursor + length / 2, centerY);
-    cursor += length;
     const piece = {
       tile,
       start,
-      center,
-      end: point(cursor, nextOutgoingY),
-      angle: angle + (isDouble ? 0 : firstHalfOffset < 0 ? 90 : -90),
-      length,
+      center: point(x, y),
+      end: point(x + (isDouble ? TILE_WIDTH : TILE_LENGTH) / 2, y),
+      angle: angle + (isDouble ? 90 : 0),
+      length: isDouble ? TILE_WIDTH : TILE_LENGTH,
     };
     dominoes.push(piece);
-    outgoingY = nextOutgoingY;
-    if (!isDouble) normalCount++;
+    last = { x, y, isDouble };
   }
+  const cursor = last
+    ? last.x + (last.isDouble ? TILE_WIDTH : TILE_LENGTH) / 2
+    : HUB_RADIUS + 20;
+  const outgoingY = last ? last.y : 0;
   return {
     angle,
     dominoes,

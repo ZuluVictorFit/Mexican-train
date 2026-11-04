@@ -53,6 +53,7 @@ export function newGame(seats, startingDouble = 12, rand = randomInt) {
     boneyard: [],
     pending: null,
     drawn: null,
+    drewThisTurn: false,
     openingPlayed: false,
     passes: 0,
     results: [],
@@ -71,6 +72,7 @@ function deal(g, rand) {
   g.trains = { community: { tiles: [], end: g.engine } };
   g.pending = null;
   g.drawn = null;
+  g.drewThisTurn = false;
   g.openingPlayed = false;
   g.passes = 0;
   const n = g.players.length <= 4 ? 15 : 12;
@@ -98,8 +100,7 @@ export function legalMoves(g, id) {
   if (g.phase !== "playing" || active(g).id !== id) return [];
   const p = player(g, id),
     ids = legalTrains(g, p);
-  const hand = g.drawn ? p.hand.filter((t) => t.id === g.drawn) : p.hand;
-  return hand.flatMap((t) =>
+  return p.hand.flatMap((t) =>
     ids
       .filter(
         (k) =>
@@ -143,40 +144,60 @@ function advance(g, rand) {
   const p = active(g);
   p.first = false;
   g.drawn = null;
+  g.drewThisTurn = false;
   g.openingPlayed = false;
   if (g.boneyard.length === 0 && g.passes >= g.players.length) {
-    endRound(g, null, rand);
-    return;
+    const savedTurn = g.turn;
+    const blocked = g.players.every((p, i) => {
+      g.turn = i;
+      return legalMoves(g, p.id).length === 0;
+    });
+    g.turn = savedTurn;
+    if (blocked) {
+      endRound(g, null, rand);
+      return;
+    }
+    g.passes = 0;
   }
   g.turn = (g.turn + 1) % g.players.length;
 }
-function drawOrPass(g, rand) {
+function draw(g) {
   const p = active(g);
-  if (legalMoves(g, p.id).length) fail("You have a playable tile.");
-  if (g.boneyard.length) {
-    const t = g.boneyard.shift();
-    p.hand.push(t);
-    g.drawn = t.id;
-    if (legalMoves(g, p.id).length) return;
-  }
-  p.open = true;
-  g.passes++;
-  advance(g, rand);
+  if (g.drewThisTurn || g.drawn) fail("You already drew this turn.");
+  if (!g.boneyard.length) fail("The boneyard is empty.");
+  const t = g.boneyard.shift();
+  p.hand.push(t);
+  g.drawn = t.id;
+  g.drewThisTurn = true;
 }
 export function act(game, id, command, rand = randomInt) {
   const g = structuredClone(game);
+  g.drewThisTurn ??= !!g.drawn;
   if (g.phase !== "playing") fail("The round is not in play.");
   const p = player(g, id);
   if (!p || active(g).id !== id) fail("It is not your turn.");
   if (!command || typeof command.type !== "string") fail("Invalid action.");
   if (command.type === "draw") {
-    if (p.first && g.openingPlayed && !g.pending)
-      fail("End your opening turn instead.");
-    drawOrPass(g, rand);
+    draw(g);
+    return g;
+  }
+  if (command.type === "end-turn") {
+    if (
+      !g.drewThisTurn &&
+      !g.drawn &&
+      g.boneyard.length &&
+      !(p.first && g.openingPlayed && !g.pending)
+    )
+      fail("Draw a tile or play before ending your turn.");
+    if (!(p.first && g.openingPlayed && !g.pending && !g.drawn)) {
+      p.open = true;
+      g.passes++;
+    } else g.passes = 0;
+    advance(g, rand);
     return g;
   }
   if (command.type === "end-opening") {
-    if (!p.first || !g.openingPlayed || g.pending)
+    if (!p.first || !g.openingPlayed || g.pending || g.drawn)
       fail("You cannot end this opening turn yet.");
     g.passes = 0;
     advance(g, rand);
@@ -222,11 +243,7 @@ export function act(game, id, command, rand = randomInt) {
         const t = g.boneyard.shift();
         p.hand.push(t);
         g.drawn = t.id;
-        if (!legalMoves(g, id).length) {
-          p.open = true;
-          g.passes++;
-          advance(g, rand);
-        }
+        g.drewThisTurn = true;
       } else {
         g.pending.finalOut = id;
         if (
@@ -280,6 +297,8 @@ export function viewGame(g, id) {
     boneyard: g.boneyard.length,
     pending: g.pending,
     drawn: g.turn === g.players.indexOf(p) ? g.drawn : null,
+    drewThisTurn:
+      g.turn === g.players.indexOf(p) && !!(g.drewThisTurn || g.drawn),
     openingPlayed: g.turn === g.players.indexOf(p) && g.openingPlayed,
     legal: legalMoves(g, id),
     results: g.results,

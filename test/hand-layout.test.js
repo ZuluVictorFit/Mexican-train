@@ -12,7 +12,7 @@ test("a fresh 12 or 15 tile hand fits desktop and tablet trays without overlappi
       const { scale, positions } = initialHandLayout(count, width, height);
       assert.equal(positions.length, count);
       assert(
-        scale >= 0.75 && scale <= 1,
+        scale >= 0.65 && scale <= 0.9,
         `unreadably small tiles at ${width}x${height}`,
       );
       for (const p of positions) {
@@ -25,6 +25,12 @@ test("a fresh 12 or 15 tile hand fits desktop and tablet trays without overlappi
           "tile must fit vertically",
         );
       }
+      assert(
+        Math.max(...positions.map((p) => (p.x + 49) * scale)) <= width * 0.93 &&
+          Math.max(...positions.map((p) => (p.y + 25.5) * scale)) <=
+            height * 0.93,
+        "leave visible space to rearrange the hand",
+      );
       for (let i = 0; i < positions.length; i++)
         for (let j = i + 1; j < positions.length; j++)
           assert(

@@ -3,6 +3,8 @@ const WIDTH = 98,
   HEIGHT = 51,
   GAP = 9,
   PADDING = 8;
+// Leave some visible workspace around a fresh deal for sorting tiles.
+export const HAND_WORKSPACE_SCALE = 0.9;
 export function initialHandLayout(count, viewWidth, viewHeight) {
   if (!Number.isInteger(count) || count < 0)
     throw new Error("Invalid hand size.");
@@ -23,7 +25,7 @@ export function initialHandLayout(count, viewWidth, viewHeight) {
       best = { columns, scale };
   }
   return {
-    scale: best.scale,
+    scale: best.scale * HAND_WORKSPACE_SCALE,
     positions: Array.from({ length: count }, (_, i) => ({
       x: PADDING / best.scale + WIDTH / 2 + (i % best.columns) * (WIDTH + GAP),
       y:

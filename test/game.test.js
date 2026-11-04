@@ -41,15 +41,15 @@ test("opening runs stay on own train and end without drawing", () => {
   g = act(g, "p0", { type: "play", tile: "5-12", train: "p:p0" }, rand);
   g = act(g, "p0", { type: "play", tile: "5-7", train: "p:p0" }, rand);
   assert.equal(g.turn, 0);
-  assert.throws(() => act(g, "p0", { type: "draw" }, rand));
   g = act(g, "p0", { type: "end-opening" }, rand);
   assert.equal(g.turn, 1);
   assert.equal(g.boneyard.length, 1);
 });
-test("failed opening draw opens train and ends turn", () => {
+test("ending after a failed opening draw opens the train", () => {
   let g = setup();
   g.players[0].hand = [t(2, 3)];
   g = act(g, "p0", { type: "draw" }, rand);
+  g = act(g, "p0", { type: "end-turn" }, rand);
   assert.equal(g.players[0].open, true);
   assert.equal(g.turn, 1);
   assert.equal(g.players[0].hand.length, 2);
@@ -60,6 +60,7 @@ test("final double forces draw then transfers cover obligation", () => {
   g.players[0].hand = [t(6, 6)];
   g.trains["p:p0"].end = 6;
   g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
+  g = act(g, "p0", { type: "end-turn" }, rand);
   assert.equal(g.turn, 1);
   assert.equal(g.players[0].open, true);
   assert.equal(g.pending.train, "p:p0");
@@ -115,6 +116,38 @@ test("rejects out-of-turn and fabricated moves without mutating state", () => {
   );
   assert.equal(JSON.stringify(g), before);
 });
+test("players may draw despite a missed play, then play an existing tile or end", () => {
+  let g = setup();
+  g.players[0].first = false;
+  g.players[1].first = false;
+  g = act(g, "p0", { type: "draw" }, rand);
+  assert.equal(g.turn, 0);
+  assert.equal(g.players[0].hand.length, 4);
+  assert.throws(() => act(g, "p0", { type: "draw" }, rand));
+  assert(legalMoves(g, "p0").some((m) => m.tile === "5-12"));
+  const played = act(
+    g,
+    "p0",
+    { type: "play", tile: "5-12", train: "p:p0" },
+    rand,
+  );
+  assert.equal(played.turn, 1);
+  assert(played.players[0].hand.some((tile) => tile.id === "1-4"));
+  const passed = act(g, "p0", { type: "end-turn" }, rand);
+  assert.equal(passed.turn, 1);
+  assert.equal(passed.players[0].open, true);
+});
+
+test("missed plays cannot falsely end a blocked round", () => {
+  let g = setup();
+  g.players.forEach((p) => (p.first = false));
+  g.boneyard = [];
+  g = act(g, "p0", { type: "end-turn" }, rand);
+  g = act(g, "p1", { type: "end-turn" }, rand);
+  assert.equal(g.phase, "playing");
+  assert.equal(g.turn, 0);
+  assert.equal(g.passes, 0);
+});
 test("complete games conserve every tile across all rounds for 2, 4 and 6 players", () => {
   let x = 1729;
   const seeded = (n) => {
@@ -142,7 +175,9 @@ test("complete games conserve every tile across all rounds for 2, 4 and 6 player
         else if (options.length) {
           const m = options[seeded(options.length)];
           g = act(g, p.id, { type: "play", ...m }, seeded);
-        } else g = act(g, p.id, { type: "draw" }, seeded);
+        } else if (g.drewThisTurn || !g.boneyard.length)
+          g = act(g, p.id, { type: "end-turn" }, seeded);
+        else g = act(g, p.id, { type: "draw" }, seeded);
         const all = [
           ...g.players.flatMap((p) => p.hand.map((t) => t.id)),
           ...g.boneyard.map((t) => t.id),
@@ -157,7 +192,7 @@ test("complete games conserve every tile across all rounds for 2, 4 and 6 player
     }
 });
 
-test("a playable opening draw stays in hand, must be played, and permits an opening run", () => {
+test("a playable opening draw can start an opening run", () => {
   let g = setup();
   g.players[0].hand = [t(1, 2), t(3, 4)];
   g.boneyard = [t(1, 12), t(0, 5)];
@@ -176,11 +211,13 @@ test("a playable opening draw stays in hand, must be played, and permits an open
   assert.equal(g.turn, 1);
 });
 
-test("an unsuccessful opening draw is visible in the player hand and passes the turn", () => {
+test("an unsuccessful opening draw stays visible until the player ends their turn", () => {
   let g = setup();
   g.players[0].hand = [t(2, 3)];
   g.boneyard = [t(1, 4), t(1, 12)];
   g = act(g, "p0", { type: "draw" }, rand);
+  assert.equal(g.turn, 0);
+  g = act(g, "p0", { type: "end-turn" }, rand);
   assert.equal(g.turn, 1);
   assert.equal(g.players[0].open, true);
   assert.deepEqual(

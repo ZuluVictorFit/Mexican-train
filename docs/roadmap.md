@@ -4,15 +4,15 @@ Status: the rules and private-room flow are implemented and being tested locally
 the multiplayer build is not yet hosted online. Complete each gate before release.
 Save decisions here so later tasks can reference a small relevant document.
 
-| Stage | Deliverable | Gate |
-| --- | --- | --- |
-| 0. Design and rules | Requirements, verified references when access permits, selected rules, corrected table/hand/lobby renderings | User agrees on core interactions, camera direction, and rule behavior. |
-| 1. Interaction prototype | One local hand tray, numbered tiles, camera switch, one legal endpoint; no multiplayer | Free placement/overlap feels right on desktop and tablet; click flips, R rotates; view changes preserve layout. |
-| 2. Rules engine | Deterministic deal/turns/draws/doubles/scoring and chosen rule config | Meaningful tests cover the cases in `rules.md`; no renderer dependency. |
-| 3. Private-room vertical slice | Host, join code, names/colors, two clients, one whole round | Separate sessions see only their own hands; legal moves and scores agree. |
-| 4. Complete six-player game | All rounds, chosen host options, persistence/reconnect, tablet controls, long routes/hands | Six-client playthrough, reconnect and server-restart recovery, no double plays or leaked hands. |
-| 5. Finish and release | Final wood art, optional train sounds, deployment, concise help | Usable keyboard/touch controls, reduced motion, readable numbers/colors, functional deployed smoke test. |
-| Later | Holiday themes, emotes, phone UI, further tested rule presets | Add separately after the core game is stable; theme boundary exists in the original UI architecture. |
+| Stage                          | Deliverable                                                                                                  | Gate                                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| 0. Design and rules            | Requirements, verified references when access permits, selected rules, corrected table/hand/lobby renderings | User agrees on core interactions, camera direction, and rule behavior.                                          |
+| 1. Interaction prototype       | One local hand tray, numbered tiles, camera switch, one legal endpoint; no multiplayer                       | Free placement/overlap feels right on desktop and tablet; click flips, R rotates; view changes preserve layout. |
+| 2. Rules engine                | Deterministic deal/turns/draws/doubles/scoring and chosen rule config                                        | Meaningful tests cover the cases in `rules.md`; no renderer dependency.                                         |
+| 3. Private-room vertical slice | Host, join code, names/colors, two clients, one whole round                                                  | Separate sessions see only their own hands; legal moves and scores agree.                                       |
+| 4. Complete six-player game    | All rounds, chosen host options, persistence/reconnect, tablet controls, long routes/hands                   | Six-client playthrough, reconnect and server-restart recovery, no double plays or leaked hands.                 |
+| 5. Finish and release          | Final wood art, optional train sounds, deployment, concise help                                              | Usable keyboard/touch controls, reduced motion, readable numbers/colors, functional deployed smoke test.        |
+| Later                          | Holiday themes, emotes, phone UI, further tested rule presets                                                | Add separately after the core game is stable; theme boundary exists in the original UI architecture.            |
 
 ## First prototype acceptance checklist
 
@@ -41,13 +41,12 @@ Save decisions here so later tasks can reference a small relevant document.
   states. No public listing or account requirement.
 - Commands from the wrong seat, fabricated tiles, duplicate submissions, and stale
   revisions cannot change game state. Only one community route can be created.
-- An unresolved double visibly gates all unrelated endpoints.
+- An unresolved double must be covered before playing elsewhere; the UI does not highlight legal endpoints.
 - Playing on the community train or another player's train leaves the acting
   player's open marker in place; when the boneyard is empty, a player with no
   legal play opens their train and passes.
-- First-turn draws target the player's own train when it cannot be started; a
-  failed draw opens it immediately. An already-started opening run ends without
-  a further draw. An exposed double has priority, even on a player's first turn;
+- A player may draw once even if a play exists, then play any legal tile or
+  end the turn and open their train. An exposed double has priority, even on a player's first turn;
   covering another player's double ends that turn, and a blocked opening run is
   not carried to a later turn.
 - Private socket payloads reveal no opponent hands or boneyard sequence.

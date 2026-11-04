@@ -6,24 +6,24 @@ third-party accounts are required locally.
 
 ## Stack and boundaries
 
-| Layer | Recommendation | Reason |
-| --- | --- | --- |
-| Language/tooling | JavaScript, Node 24, npm with a committed lockfile | Reuses the tested interaction study and runs without a compile step. |
-| Client | Vanilla browser JavaScript | Reuses the existing hand interactions; the earlier React/Vite choice remains optional. |
-| Table | SVG routes and tiles inside a CSS-transformed board layer | Precise endpoints and camera projection without a full 3D engine. |
-| Private hand | DOM/SVG tile faces with Pointer Events and continuous CSS transforms | Touch/keyboard access, arbitrary placement, predictable hit targets. |
-| Multiplayer | Express + Socket.IO on one Node HTTP service | Server-authoritative rooms and reconnect transport. |
-| Rules | Isolated JavaScript module with server-validated commands | Deterministic tests; server always revalidates client intentions. |
-| Persistence | SQLite on a persistent volume for one server instance | Small operational footprint; transactional game snapshots and recovery. |
-| Verification | Node test runner; browser checks for interaction and multiplayer | Tests the actual risky behaviors. |
+| Layer            | Recommendation                                                       | Reason                                                                                 |
+| ---------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Language/tooling | JavaScript, Node 24, npm with a committed lockfile                   | Reuses the tested interaction study and runs without a compile step.                   |
+| Client           | Vanilla browser JavaScript                                           | Reuses the existing hand interactions; the earlier React/Vite choice remains optional. |
+| Table            | SVG routes and tiles inside a CSS-transformed board layer            | Precise endpoints and camera projection without a full 3D engine.                      |
+| Private hand     | DOM/SVG tile faces with Pointer Events and continuous CSS transforms | Touch/keyboard access, arbitrary placement, predictable hit targets.                   |
+| Multiplayer      | Express + Socket.IO on one Node HTTP service                         | Server-authoritative rooms and reconnect transport.                                    |
+| Rules            | Isolated JavaScript module with server-validated commands            | Deterministic tests; server always revalidates client intentions.                      |
+| Persistence      | SQLite on a persistent volume for one server instance                | Small operational footprint; transactional game snapshots and recovery.                |
+| Verification     | Node test runner; browser checks for interaction and multiplayer     | Tests the actual risky behaviors.                                                      |
 
-The table lays out every domino in a compact outward stagger, with matching halves
-touching and doubles turned across the pattern. Mouse-wheel and button zoom, pan,
+The table lays out lengthwise dominoes in two alternating, parallel tracks, with
+matching halves touching and doubles turned across the pattern. Mouse-wheel and button zoom, pan,
 fit, and per-train focus remain available. Very long trains may extend beyond the
 current zoomed view; Fit table shows the whole board. A fresh 12- or 15-tile hand
-is arranged and scaled to fit the compact tray; subsequent user arrangements are
-not automatically rearranged. A drawn tile is brought into view, and turn
-instructions explain whether it must be played or the turn has passed.
+is arranged and scaled to leave workspace in the compact tray; subsequent user
+arrangements are not automatically rearranged. A drawn tile is brought into view.
+Players decide whether to play or end their turn without legal-move highlights.
 
 Do not add Three.js, Redis, a separate API platform, or a second server language
 unless the camera prototype or hosting constraints justify it. Validate CSS/SVG

@@ -36,10 +36,10 @@ locally, open a normal and a private/incognito browser window, create a table in
 one, and join with its code in the other. Multiple windows sharing one browser
 profile share a seat. Run `npm test` for the rules and server tests.
 
-When a player cannot play, **Draw** draws one tile. A playable draw is highlighted
-and brought into view; if it cannot be played, the player's train opens and the
-turn passes. After an opening run, use **End opening turn**. The table shows
-connected dominoes in a compact stagger, with doubles turned across the pattern.
+**Draw** takes one tile, even if you missed a playable tile. Then play any legal
+tile or use **End turn** to open your train and pass. After an opening run, use
+**End opening turn**. The table shows lengthwise dominoes alternating between
+two parallel tracks, with matching halves adjacent and doubles turned across.
 Use the mouse wheel or zoom buttons, drag-to-pan, **Fit table**, and each train's
 **Focus** control to inspect longer trains. Freshly dealt tiles fit in the hand;
 you can then arrange them freely. **Fit hand** and **Restore view** change only

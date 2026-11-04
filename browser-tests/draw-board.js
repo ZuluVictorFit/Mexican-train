@@ -134,6 +134,29 @@ db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
     commands: {},
   }),
 );
+const doubleGame = newGame(seats, 12, () => 0);
+doubleGame.turn = 0;
+doubleGame.players[0].first = false;
+doubleGame.players[0].hand = [t(6, 8), t(3, 4)];
+doubleGame.trains["p:seat0"] = {
+  end: 6,
+  tiles: [
+    { id: "6-12", a: 12, b: 6, by: "seat0" },
+    { id: "6-6", a: 6, b: 6, by: "seat0" },
+  ],
+};
+doubleGame.pending = { train: "p:seat0", by: "seat0", finalOut: null };
+db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+  "TEST28",
+  JSON.stringify({
+    code: "TEST28",
+    host: "seat0",
+    seats,
+    revision: 0,
+    game: doubleGame,
+    commands: {},
+  }),
+);
 const sixSeats = Array.from({ length: 6 }, (_, i) => ({
   id: `seat${i}`,
   session: i < 2 ? sessions[i] : String(i).repeat(48),
@@ -194,6 +217,16 @@ try {
     await p.reload();
     await p.waitForSelector("#gameArea:not([hidden])");
     assert.equal(await p.locator('[data-train-marker="community"]').count(), 1);
+    assert.equal(await p.locator('[data-quick-train="community"]').count(), 1);
+    assert(
+      (await p
+        .locator('[data-quick-train="community"] [fill="#00cfff"]')
+        .count()) > 0,
+    );
+    assert.equal(await p.locator('[data-quick-train="p:seat0"]').count(), 0);
+    assert.equal(await p.locator(".double-pending").count(), 0);
+    assert.equal(await p.locator(".hand-header #drawButton").count(), 1);
+    assert.equal(await p.locator(".hand-header #endOpening").count(), 1);
     assert.equal(
       await p.locator('[data-train-marker="community"] > circle').count(),
       0,
@@ -286,6 +319,7 @@ try {
         document.querySelector("#turnLabel").textContent.includes("Morgan"),
       );
       assert.equal(await p.locator('[data-train-marker="p:seat0"]').count(), 1);
+      assert.equal(await p.locator('[data-quick-train="p:seat0"]').count(), 1);
       assert.equal(
         await p.locator('[data-train-marker="p:seat0"] > circle').count(),
         0,
@@ -325,6 +359,7 @@ try {
       await p.locator('.endpoint[data-train="p:seat0"]').click();
       await p.waitForSelector('.rail-domino[data-tile="0-12"]');
       assert.equal(await p.locator('[data-train-marker="p:seat0"]').count(), 0);
+      assert.equal(await p.locator('[data-quick-train="p:seat0"]').count(), 0);
       assert.equal(
         await p.locator('[data-train-marker="community"]').count(),
         1,
@@ -368,11 +403,20 @@ try {
     .getByRole("button", { name: "Expand Your train", exact: true })
     .click();
   assert.equal(await p.locator(".rail-domino").count(), 13);
-  assert.equal(await p.locator(".train-gap").count(), 0);
-  await p.getByRole("button", { name: "Condense Your train" }).click();
+  assert.equal(await p.locator(".train-gap:not(.train-collapse)").count(), 0);
+  if (process.env.EXPANDED_SCREENSHOT)
+    await p.screenshot({ path: process.env.EXPANDED_SCREENSHOT });
+  await p
+    .getByRole("button", { name: "Condense Your train", exact: true })
+    .click();
   assert.equal(await p.locator(".rail-domino").count(), 5);
   await p.locator(".train-gap").click();
   assert.equal(await p.locator(".rail-domino").count(), 13);
+  await p.getByRole("button", { name: "Condense Your train on table" }).click();
+  assert.equal(await p.locator(".rail-domino").count(), 5);
+  await p
+    .getByRole("button", { name: "Expand Your train", exact: true })
+    .click();
   const controlsBox = await p.locator(".board-controls").boundingBox();
   const playableArea = await p.locator(".rail-board").boundingBox();
   assert(
@@ -483,9 +527,73 @@ try {
     touchBefore,
     "touch dragging must pan the table",
   );
+  const widthBeforePinch = Number(
+    (await p.locator(".rail-board").getAttribute("viewBox")).split(" ")[2],
+  );
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [
+      { x: tx - 35, y: ty, id: 1 },
+      { x: tx + 35, y: ty, id: 2 },
+    ],
+  });
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [
+      { x: tx - 65, y: ty, id: 1 },
+      { x: tx + 65, y: ty, id: 2 },
+    ],
+  });
+  await p.waitForFunction(
+    (before) =>
+      Number(
+        document
+          .querySelector(".rail-board")
+          .getAttribute("viewBox")
+          .split(" ")[2],
+      ) < before,
+    widthBeforePinch,
+  );
+  const widthAfterPinch = Number(
+    (await p.locator(".rail-board").getAttribute("viewBox")).split(" ")[2],
+  );
+  assert(
+    widthAfterPinch < widthBeforePinch,
+    "spreading two fingers zooms into the table",
+  );
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [
+      { x: tx - 30, y: ty, id: 1 },
+      { x: tx + 30, y: ty, id: 2 },
+    ],
+  });
+  await p.waitForFunction(
+    (before) =>
+      Number(
+        document
+          .querySelector(".rail-board")
+          .getAttribute("viewBox")
+          .split(" ")[2],
+      ) > before,
+    widthAfterPinch,
+  );
+  const widthAfterClosing = Number(
+    (await p.locator(".rail-board").getAttribute("viewBox")).split(" ")[2],
+  );
+  assert(
+    widthAfterClosing > widthAfterPinch,
+    `pinching two fingers zooms out: ${widthBeforePinch}, ${widthAfterPinch}, ${widthAfterClosing}`,
+  );
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
   await p.locator('[data-id="2-12"]').click();
   assert.equal(await p.locator(".endpoint.valid").count(), 0);
-  await p.getByRole("button", { name: "Condense Your train" }).click();
+  await p
+    .getByRole("button", { name: "Condense Your train", exact: true })
+    .click();
   await p.locator('.train-line [data-train="p:seat0"]').click();
   await p.waitForSelector('.rail-domino[data-tile="2-12"]');
   assert.equal(await p.locator(".rail-domino").count(), 5);
@@ -643,6 +751,21 @@ try {
     remoteView,
     "selecting a tile must not reveal its playable endpoint",
   );
+  await pv.evaluate(() => localStorage.setItem("mexican-train-room", "TEST28"));
+  await pv.reload();
+  await pv.waitForSelector("#gameArea:not([hidden])");
+  assert.equal(
+    await pv.locator('.rail-domino.double-pending[data-tile="6-6"]').count(),
+    1,
+  );
+  assert.equal(await pv.locator(".train-chip.double-pending").count(), 1);
+  assert.equal(await pv.locator(".rail-domino.double-pending").count(), 1);
+  if (process.env.DOUBLE_SCREENSHOT)
+    await pv.screenshot({ path: process.env.DOUBLE_SCREENSHOT });
+  await pv.locator('[data-id="6-8"]').click();
+  await pv.locator('.train-line [data-train="p:seat0"]').click();
+  await pv.waitForSelector('.rail-domino[data-tile="6-8"]');
+  assert.equal(await pv.locator(".double-pending").count(), 0);
   await cv.close();
 } finally {
   await browser?.close();

@@ -61,6 +61,13 @@ and the most recent four. Each player can expand or condense a train locally;
 the quick-view list retains the complete sequence. After a double, the train
 continues along the same two staggered lanes.
 
+Only a currently uncovered double is highlighted until it is covered. Quick
+view shows each open player's locomotive and the community locomotive at the
+start of the route; the community marker is bright cyan. Draw and end-turn
+controls sit in the hand header. Long routes have both expand and condense
+controls on the board, and pinch gestures zoom the table on supported touch
+devices. Player choices and game rules are otherwise unchanged.
+
 ## Recommended first-version boundaries (not yet approved)
 
 Anonymous display names, private unlisted rooms, 2–6 human players, a double-12

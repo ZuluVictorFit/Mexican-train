@@ -505,7 +505,7 @@ import {
         color: p.color,
         open: p.open,
       })),
-      { key: "community", name: "Community", color: "#bc8b3b" },
+      { key: "community", name: "Community", color: "#00cfff" },
     ].map((lane) => ({ ...lane, tiles: g.trains[lane.key].tiles }));
     const roundKey = `${room.code}:${g.round}`;
     if (expandedRound !== roundKey) {
@@ -674,9 +674,13 @@ import {
         svg.append(holder);
       }
       for (const piece of train.dominoes) {
+        const pendingDouble =
+          g.pending?.train === train.key &&
+          piece.tile.id === train.tiles.at(-1)?.id &&
+          piece.tile.a === piece.tile.b;
         const group = svgElement("g", {
           transform: `translate(${piece.center.x} ${piece.center.y}) rotate(${piece.angle})`,
-          class: "rail-domino",
+          class: pendingDouble ? "rail-domino double-pending" : "rail-domino",
           "data-tile": piece.tile.id,
         });
         group.append(
@@ -718,6 +722,27 @@ import {
         }
         svg.append(group);
       }
+      if (expandedTrains.has(train.key) && train.tiles.length > 5) {
+        const first = train.dominoes[0].center;
+        const radians = (train.angle * Math.PI) / 180;
+        const x = first.x + Math.sin(radians) * 42;
+        const y = first.y - Math.cos(radians) * 42;
+        const holder = svgElement("foreignObject", {
+          x: x - 18,
+          y: y - 14,
+          width: 36,
+          height: 28,
+        });
+        const collapse = document.createElement("button");
+        collapse.type = "button";
+        collapse.className = "train-gap train-collapse";
+        collapse.dataset.trainExpand = train.key;
+        collapse.textContent = "−";
+        collapse.setAttribute("aria-label", `Condense ${train.name} on table`);
+        collapse.addEventListener("click", () => toggleTrain(train.key));
+        holder.append(collapse);
+        svg.append(holder);
+      }
       const label = svgElement("text", {
         x: train.label.x,
         y: train.label.y,
@@ -757,12 +782,33 @@ import {
       row.className = "train-line";
       const title = document.createElement("b");
       title.textContent = train.name + (train.open ? " · open" : "");
+      let quickIcon = null;
+      if (train.open || train.key === "community") {
+        quickIcon = svgElement("svg", {
+          viewBox: "-16 -16 32 32",
+          class: "quick-train-icon",
+          "aria-hidden": "true",
+          "data-quick-train": train.key,
+        });
+        quickIcon.append(locomotiveModel(svgElement, train.color));
+      }
       const values = document.createElement("span");
       values.className = "train-values";
       if (!train.tiles.length) values.textContent = `Starts with ${g.engine}`;
-      for (const t of train.tiles) {
+      for (const [index, t] of train.tiles.entries()) {
         const chip = document.createElement("span");
-        chip.className = "train-chip";
+        const pendingDouble =
+          g.pending?.train === train.key &&
+          index === train.tiles.length - 1 &&
+          t.a === t.b;
+        chip.className = pendingDouble
+          ? "train-chip double-pending"
+          : "train-chip";
+        if (pendingDouble)
+          chip.setAttribute(
+            "aria-label",
+            `Uncovered double ${t.a}; must be covered`,
+          );
         chip.innerHTML = `<span style="color:var(--v${t.a})">${t.a}</span><span style="color:var(--v${t.b})">${t.b}</span>`;
         values.append(chip);
       }
@@ -782,7 +828,9 @@ import {
         focusTrainEnd(train);
         updateBoardView();
       });
-      row.append(title, values, focus);
+      row.append(title);
+      if (quickIcon) row.append(quickIcon);
+      row.append(values, focus);
       if (train.tiles.length > 5) {
         const toggle = document.createElement("button");
         toggle.type = "button";
@@ -800,24 +848,75 @@ import {
       row.append(button);
       list.append(row);
     }
-    let pan = null;
+    let pan = null,
+      pinch = null;
+    const touches = new Map();
+    const startPan = (pointer, x, y) => ({
+      pointer,
+      x,
+      y,
+      viewX: boardView.x,
+      viewY: boardView.y,
+    });
+    function touchPair() {
+      const [a, b] = [...touches.values()];
+      return {
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2,
+        distance: Math.hypot(a.x - b.x, a.y - b.y),
+      };
+    }
+    function pointAt(clientX, clientY) {
+      const rect = svg.getBoundingClientRect();
+      return {
+        nx: (clientX - rect.left) / Math.max(1, rect.width) - 0.5,
+        ny: (clientY - rect.top) / Math.max(1, rect.height) - 0.5,
+        aspect: $("board").clientWidth / Math.max(1, $("board").clientHeight),
+      };
+    }
     svg.addEventListener("pointerdown", (event) => {
       if (
         event.button !== 0 ||
         event.target.closest("[data-train], [data-train-expand]")
       )
         return;
-      pan = {
-        pointer: event.pointerId,
-        x: event.clientX,
-        y: event.clientY,
-        viewX: boardView.x,
-        viewY: boardView.y,
-      };
+      if (event.pointerType === "touch") {
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (touches.size === 2) {
+          const mid = touchPair(),
+            p = pointAt(mid.x, mid.y);
+          const radius = boardView.radius / boardView.zoom;
+          pinch = {
+            distance: Math.max(1, mid.distance),
+            zoom: boardView.zoom,
+            worldX: boardView.x + p.nx * 2 * p.aspect * radius,
+            worldY: boardView.y + p.ny * 2 * radius,
+          };
+          pan = null;
+        } else if (touches.size === 1)
+          pan = startPan(event.pointerId, event.clientX, event.clientY);
+      } else pan = startPan(event.pointerId, event.clientX, event.clientY);
       svg.setPointerCapture(event.pointerId);
       event.preventDefault();
     });
     svg.addEventListener("pointermove", (event) => {
+      if (touches.has(event.pointerId))
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pinch && touches.size >= 2) {
+        const mid = touchPair(),
+          p = pointAt(mid.x, mid.y);
+        boardView.zoom = Math.max(
+          1,
+          Math.min(32, (pinch.zoom * mid.distance) / pinch.distance),
+        );
+        const radius = boardView.radius / boardView.zoom;
+        boardView.x = pinch.worldX - p.nx * 2 * p.aspect * radius;
+        boardView.y = pinch.worldY - p.ny * 2 * radius;
+        boardView.manual = true;
+        boardView.fitActive = false;
+        updateBoardView();
+        return;
+      }
       if (!pan || event.pointerId !== pan.pointer) return;
       boardView.manual = true;
       boardView.fitActive = false;
@@ -833,12 +932,16 @@ import {
         ((event.clientY - pan.y) * height) / Math.max(1, rect.height);
       updateBoardView();
     });
-    svg.addEventListener("pointerup", () => {
-      pan = null;
-    });
-    svg.addEventListener("pointercancel", () => {
-      pan = null;
-    });
+    function endPointer(event) {
+      touches.delete(event.pointerId);
+      if (touches.size < 2) pinch = null;
+      if (touches.size === 1) {
+        const [id, position] = touches.entries().next().value;
+        pan = startPan(id, position.x, position.y);
+      } else if (!touches.size) pan = null;
+    }
+    svg.addEventListener("pointerup", endPointer);
+    svg.addEventListener("pointercancel", endPointer);
     $("boardTiles").replaceChildren();
     updateBoardView();
     updateSelection();
@@ -982,9 +1085,6 @@ import {
         : g.phase === "finished"
           ? "Game complete"
           : "Round complete";
-    $("tableHint").textContent = g.pending
-      ? "An exposed double must be covered"
-      : $("turnLabel").textContent;
     const pl = $("gameArea").querySelector(".players");
     pl.replaceChildren(
       ...g.players.map((p) => {
@@ -1047,6 +1147,8 @@ import {
     $("nextRound").hidden = !(g.phase === "round-end" && r.host === r.me);
     $("rematch").hidden = !(g.phase === "finished" && r.host === r.me);
     $("leaveGame").hidden = g.phase !== "finished";
+    document.querySelector(".game-controls").hidden =
+      $("nextRound").hidden && $("rematch").hidden && $("leaveGame").hidden;
     const winner = g.players.find((p) => p.id === g.gameWinner);
     $("gameMessage").textContent =
       g.phase === "finished"

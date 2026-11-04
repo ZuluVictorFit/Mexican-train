@@ -511,10 +511,12 @@ button:focus-visible,
   overflow: hidden;
 }
 .hand-header {
-  height: 60px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
   padding: 8px 17px;
 }
 .hand-header h2 {
@@ -531,6 +533,20 @@ button:focus-visible,
 .hand-header-actions {
   display: flex;
   gap: 8px;
+}
+.hand-turn-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.hand-turn-controls .small-button:not(:disabled) {
+  background: #204c38;
+  border-color: #204c38;
+  color: white;
+}
+.hand-turn-controls .small-button:disabled {
+  opacity: 0.5;
 }
 .small-button {
   padding: 8px 10px;
@@ -1109,6 +1125,10 @@ kbd {
 .train-gap:focus-visible {
   background: #fff6df;
 }
+.train-collapse {
+  width: 34px;
+  font-size: 16px;
+}
 .train-line {
   display: flex;
   align-items: center;
@@ -1120,6 +1140,17 @@ kbd {
 }
 .train-line b {
   min-width: 100px;
+}
+.quick-train-icon {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  overflow: visible;
+}
+.train-chip.double-pending {
+  background: #ffe36b;
+  outline: 2px solid #d26c00;
+  outline-offset: -1px;
 }
 .train-line button {
   border: 1px solid #c8d8c7;
@@ -1262,6 +1293,11 @@ kbd {
     700 20px Georgia,
     serif;
   pointer-events: none;
+}
+.rail-domino.double-pending > rect {
+  stroke: #ffbd00;
+  stroke-width: 6;
+  filter: drop-shadow(0 0 5px #fff09a);
 }
 .rail-label {
   font:

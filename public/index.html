@@ -99,16 +99,6 @@
     </header>
     <main class="app-layout" id="gameArea" hidden>
       <section class="game-column" aria-label="Game table and your hand">
-        <div class="table-head">
-          <div>
-            <span class="eyebrow">THE TABLE</span>
-            <h1>A seat at the table<span class="period">.</span></h1>
-          </div>
-          <div class="table-hint">
-            <span class="live-dot"></span>
-            <span id="tableHint">Your turn · choose a tile</span>
-          </div>
-        </div>
         <div
           id="actionBanner"
           class="action-banner"
@@ -227,17 +217,21 @@
           </div>
           <div class="train-list" id="trainList" aria-label="All trains"></div>
           <div class="board-caption">
-            <span><span class="legend-dot"></span> THE TABLE</span
-            ><span id="boardCaption"
-              >Select a tile to see where it can go.</span
-            >
+            <span id="boardCaption">Select a tile to see where it can go.</span>
           </div>
         </div>
         <section class="hand-card" id="handCard" aria-label="Your private hand">
           <div class="hand-header">
             <div>
-              <span class="eyebrow">JUST FOR YOU</span>
               <h2>Your hand <span id="handCount">15 tiles</span></h2>
+            </div>
+            <div class="hand-turn-controls">
+              <button id="drawButton" class="small-button" type="button">
+                Draw
+              </button>
+              <button id="endOpening" class="small-button" type="button" hidden>
+                End turn
+              </button>
             </div>
             <div class="hand-header-actions">
               <button id="fitButton" class="small-button" type="button">
@@ -285,11 +279,6 @@
       </section>
       <aside class="sidebar" aria-label="Table information">
         <div class="side-section">
-          <span class="eyebrow">A LITTLE FRIENDLY GAME</span>
-          <h2>Good to see you<span class="period">.</span></h2>
-          <p>A quiet corner for your next great train.</p>
-        </div>
-        <div class="side-section">
           <div class="section-heading">
             <span>AT THE TABLE</span><span class="player-count">6 PLAYERS</span>
           </div>
@@ -330,11 +319,7 @@
             on the table.
           </p>
           <div class="game-controls">
-            <button id="drawButton" class="small-button" type="button">
-              Draw / pass</button
-            ><button id="endOpening" class="small-button" type="button">
-              End opening turn</button
-            ><button id="nextRound" class="small-button" type="button" hidden>
+            <button id="nextRound" class="small-button" type="button" hidden>
               Start next round</button
             ><button id="rematch" class="small-button" type="button" hidden>
               Play again</button

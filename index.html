@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mexican Train · Interaction study</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">✣</span><div><strong>Mexican Train</strong><small>TABLETOP STUDY</small></div></div>
+    <div class="top-status"><span class="status-dot"></span><span id="turnLabel">Your turn</span><span class="status-separator"></span><span>Round 1 <b>·</b> 12</span></div>
+    <button class="quiet-button" id="cameraButton" type="button" aria-pressed="false">Table perspective</button>
+  </header>
+  <main class="app-layout">
+    <section class="game-column" aria-label="Game table and your hand">
+      <div class="table-head"><div><span class="eyebrow">THE TABLE</span><h1>A seat at the table<span class="period">.</span></h1></div><div class="table-hint"><span class="live-dot"></span> <span id="tableHint">Your turn · choose a tile</span></div></div>
+      <div class="board-frame">
+        <div class="board-viewport" id="boardViewport">
+          <div class="board" id="board" aria-label="Sample tabletop">
+            <div class="board-ring ring-one"></div><div class="board-ring ring-two"></div>
+            <div class="route route-you"></div><div class="route route-morgan"></div><div class="route route-community"></div><div class="route route-avery"></div><div class="route route-sam"></div><div class="route route-jules"></div><div class="route route-riley"></div>
+            <div class="seat seat-morgan"><span class="train-icon purple"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h4V3h2v3h6v2h2a2 2 0 0 1 2 2v6h2v2h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-2h2V6zm2 2v5h4V8H6zm6 0v5h4V8h-4zM7 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg></span><span>Morgan <small>OPEN</small></span></div>
+            <div class="seat seat-avery"><span class="train-icon coral"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h4V3h2v3h6v2h2a2 2 0 0 1 2 2v6h2v2h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-2h2V6zm2 2v5h4V8H6zm6 0v5h4V8h-4zM7 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg></span><span>Avery</span></div>
+            <div class="seat seat-sam"><span class="train-icon blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h4V3h2v3h6v2h2a2 2 0 0 1 2 2v6h2v2h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-2h2V6zm2 2v5h4V8H6zm6 0v5h4V8h-4zM7 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg></span><span>Sam</span></div>
+            <div class="seat seat-jules"><span class="train-icon gold"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h4V3h2v3h6v2h2a2 2 0 0 1 2 2v6h2v2h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-2h2V6zm2 2v5h4V8H6zm6 0v5h4V8h-4zM7 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg></span><span>Jules</span></div>
+            <div class="seat seat-riley"><span class="train-icon pink"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h4V3h2v3h6v2h2a2 2 0 0 1 2 2v6h2v2h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-2h2V6zm2 2v5h4V8H6zm6 0v5h4V8h-4zM7 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg></span><span>Riley</span></div>
+            <div class="seat seat-you"><span class="train-icon teal"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h4V3h2v3h6v2h2a2 2 0 0 1 2 2v6h2v2h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-2h2V6zm2 2v5h4V8H6zm6 0v5h4V8h-4zM7 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg></span><span>You <small>YOUR TRAIN</small></span></div>
+            <div class="seat seat-community"><span class="train-icon ochre"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h4V3h2v3h6v2h2a2 2 0 0 1 2 2v6h2v2h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-2h2V6zm2 2v5h4V8H6zm6 0v5h4V8h-4zM7 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg></span><span>Community</span></div>
+            <div class="hub"><div class="hub-inner"><span class="hub-title">MEXICAN TRAIN</span><div class="engine"><span>12</span><span>12</span></div><span class="hub-sub">THE ENGINE</span></div></div>
+            <div id="boardTiles" aria-hidden="true"></div>
+            <button class="endpoint endpoint-you" data-endpoint="you" type="button" aria-label="Play on your train"></button>
+            <button class="endpoint endpoint-morgan" data-endpoint="morgan" type="button" aria-label="Play on Morgan's open train"></button>
+            <button class="endpoint endpoint-community" data-endpoint="community" type="button" aria-label="Play on the community train"></button>
+          </div>
+        </div>
+        <div class="board-caption"><span><span class="legend-dot"></span> SAMPLE TABLE</span><span id="boardCaption">Select a tile to see where it can go.</span></div>
+      </div>
+      <section class="hand-card" id="handCard" aria-label="Your private hand">
+        <div class="hand-header"><div><span class="eyebrow">JUST FOR YOU</span><h2>Your hand <span id="handCount">15 tiles</span></h2></div><div class="hand-header-actions"><button id="fitButton" class="small-button" type="button">Fit hand</button><button id="expandButton" class="small-button expand-button" type="button">⤢ <span>Expand hand</span></button></div></div>
+        <div class="hand-viewport" id="handViewport" tabindex="0" aria-label="Your hand. Scroll to see more tiles."><div class="hand-space" id="handSpace"><div class="hand-canvas" id="handCanvas"></div></div></div>
+        <div class="hand-footer"><div class="instructions"><span>Drag to arrange</span><i></i><span>Click to flip</span><i></i><span><kbd>R</kbd> rotate</span></div><div class="hand-actions"><button class="text-button" id="flipButton" type="button">Flip</button><button class="text-button" id="rotateButton" type="button">Rotate 90°</button><button class="primary-button" id="playButton" type="button" disabled>Play selected <span>→</span></button></div></div>
+      </section>
+    </section>
+    <aside class="sidebar" aria-label="Table information">
+      <div class="side-section"><span class="eyebrow">A LITTLE FRIENDLY GAME</span><h2>Good to see you<span class="period">.</span></h2><p>A quiet corner for your next great train.</p></div>
+      <div class="side-section"><div class="section-heading"><span>AT THE TABLE</span><span class="player-count">6 PLAYERS</span></div><ul class="players"><li><span class="player-avatar teal">Y</span><span><b>You</b><small>YOUR TRAIN</small></span><em>YOUR TURN</em></li><li><span class="player-avatar purple">M</span><span><b>Morgan</b><small>TRAIN OPEN</small></span><span class="open-indicator"></span></li><li><span class="player-avatar coral">A</span><span><b>Avery</b><small>HOST</small></span></li><li><span class="player-avatar blue">S</span><span><b>Sam</b></span></li><li><span class="player-avatar gold">J</span><span><b>Jules</b></span></li><li><span class="player-avatar pink">R</span><span><b>Riley</b></span></li></ul></div>
+      <div class="side-section"><div class="section-heading"><span>HOW TO PLAY</span></div><p class="side-copy">Arrange your tiles however you like. Select one, then choose a glowing end on the table.</p><button id="resetButton" class="reset-button" type="button">↺ Reset sample</button></div>
+      <div class="sidebar-bottom">MADE FOR GOOD COMPANY <span>✣</span></div>
+    </aside>
+  </main>
+  <div class="notice" id="notice" role="status" aria-live="polite"></div>
+  <div class="prototype-label">INTERACTION STUDY <span>·</span> LOCAL SAMPLE</div>
+  <script src="app.js"></script>
+</body>
+</html>

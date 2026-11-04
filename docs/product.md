@@ -54,6 +54,13 @@ The locomotive marker uses a small projected 3D model styled as a glossy plastic
 toy in the player's chosen color, without a placement circle. A fuller environment
 that feels like sitting around a table with friends is a later refinement.
 
+The sidebar keeps a running scoreboard with each player's total and completed
+round scores throughout the game. A long train automatically condenses when it
+has more than five dominoes: show the first, a control for the hidden middle,
+and the most recent four. Each player can expand or condense a train locally;
+the quick-view list retains the complete sequence. After a double, the train
+continues along the same two staggered lanes.
+
 ## Recommended first-version boundaries (not yet approved)
 
 Anonymous display names, private unlisted rooms, 2–6 human players, a double-12

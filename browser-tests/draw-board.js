@@ -53,6 +53,19 @@ for (const [code, draw] of [
 }
 const long = newGame(seats, 12, () => 0);
 long.turn = 0;
+long.round = 2;
+long.players[0].score = 17;
+long.players[1].score = 24;
+long.results = [
+  {
+    round: 1,
+    engine: 12,
+    scores: [
+      { id: "seat0", points: 17 },
+      { id: "seat1", points: 24 },
+    ],
+  },
+];
 long.players[0].first = false;
 const chain = [
   t(12, 0),
@@ -338,6 +351,27 @@ try {
   await p.evaluate(() => localStorage.setItem("mexican-train-room", "TEST25"));
   await p.reload();
   await p.waitForSelector("#gameArea:not([hidden])");
+  assert.equal(await p.locator(".rail-domino").count(), 5);
+  assert.equal(await p.locator(".train-gap").count(), 1);
+  if (process.env.COMPACT_SCREENSHOT)
+    await p.screenshot({ path: process.env.COMPACT_SCREENSHOT });
+  assert.match(
+    await p.locator("#roundResults").textContent(),
+    /Avery: 17 points/,
+  );
+  assert.match(await p.locator("#roundResults").textContent(), /12–12: 17/);
+  assert.match(
+    await p.locator("#roundResults").textContent(),
+    /Morgan: 24 points/,
+  );
+  await p
+    .getByRole("button", { name: "Expand Your train", exact: true })
+    .click();
+  assert.equal(await p.locator(".rail-domino").count(), 13);
+  assert.equal(await p.locator(".train-gap").count(), 0);
+  await p.getByRole("button", { name: "Condense Your train" }).click();
+  assert.equal(await p.locator(".rail-domino").count(), 5);
+  await p.locator(".train-gap").click();
   assert.equal(await p.locator(".rail-domino").count(), 13);
   const controlsBox = await p.locator(".board-controls").boundingBox();
   const playableArea = await p.locator(".rail-board").boundingBox();
@@ -451,6 +485,15 @@ try {
   );
   await p.locator('[data-id="2-12"]').click();
   assert.equal(await p.locator(".endpoint.valid").count(), 0);
+  await p.getByRole("button", { name: "Condense Your train" }).click();
+  await p.locator('.train-line [data-train="p:seat0"]').click();
+  await p.waitForSelector('.rail-domino[data-tile="2-12"]');
+  assert.equal(await p.locator(".rail-domino").count(), 5);
+  assert.equal(await p.locator(".train-gap").textContent(), "+9");
+  assert.match(
+    await p.locator("#roundResults").textContent(),
+    /Avery: 17 points/,
+  );
   console.log(
     "All 13 dominoes render on the table; zoom, fit and focus passed.",
   );

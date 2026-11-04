@@ -34,12 +34,11 @@ export function layoutTrain(tiles, angle) {
         last.x +
         (last.isDouble ? TILE_WIDTH : TILE_LENGTH) / 2 +
         (isDouble ? TILE_WIDTH : TILE_LENGTH) / 2;
-      y = last.y + (last.isDouble && !isDouble ? TILE_LENGTH / 4 : 0);
+      // Cover the double on the same lane as the preceding tile. The next
+      // ordinary tile then resumes the existing alternating two-lane pattern.
+      y = last.y;
       joinX = last.x + (last.isDouble ? TILE_WIDTH : TILE_LENGTH) / 2;
-      joinY = last.isDouble
-        ? last.y + TILE_LENGTH / 4
-        : last.y - TILE_WIDTH / 4;
-      side = 1;
+      joinY = last.isDouble ? last.y + TILE_WIDTH / 4 : last.y - TILE_WIDTH / 4;
     }
     const start = point(joinX, joinY);
     if (dominoes.length) dominoes.at(-1).end = start;
@@ -68,10 +67,48 @@ export function layoutTrain(tiles, angle) {
   };
 }
 
-export function layoutTable(lanes) {
+// Replace only the middle of a long route with a visible gap. Geometry is
+// computed for the full train first so the retained tail preserves its lanes.
+function compactTrain(train) {
+  if (train.dominoes.length <= 5) return train;
+  const radians = (train.angle * Math.PI) / 180;
+  const ux = Math.cos(radians),
+    uy = Math.sin(radians);
+  const axial = (p) => p.x * ux + p.y * uy;
+  const halfLength = (p) => p.length / 2;
+  const first = train.dominoes[0];
+  const tail = train.dominoes.slice(-4);
+  const firstRight = axial(first.center) + halfLength(first);
+  const tailLeft = axial(tail[0].center) - halfLength(tail[0]);
+  const shift = tailLeft - firstRight - 42;
+  const moved = (p) => ({ x: p.x - shift * ux, y: p.y - shift * uy });
+  const movedTail = tail.map((piece) => ({
+    ...piece,
+    center: moved(piece.center),
+    start: moved(piece.start),
+    end: moved(piece.end),
+  }));
+  return {
+    ...train,
+    dominoes: [first, ...movedTail],
+    hiddenCount: train.dominoes.length - 5,
+    gap: { x: (firstRight + 21) * ux, y: (firstRight + 21) * uy },
+    end: moved(train.end),
+    target: moved(train.target),
+    label: moved(train.label),
+    extent: train.extent - shift,
+  };
+}
+
+export function layoutTable(
+  lanes,
+  { condense = false, expanded = new Set() } = {},
+) {
   const trains = lanes.map((lane, index) => ({
     ...lane,
-    ...layoutTrain(lane.tiles, 90 + (index * 360) / lanes.length),
+    ...(condense && !expanded.has(lane.key)
+      ? compactTrain(layoutTrain(lane.tiles, 90 + (index * 360) / lanes.length))
+      : layoutTrain(lane.tiles, 90 + (index * 360) / lanes.length)),
   }));
   const bounds = {
     minX: -HUB_RADIUS,

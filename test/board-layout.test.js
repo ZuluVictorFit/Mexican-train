@@ -94,6 +94,63 @@ test("a staggered 15-tile train fits in much less outward space than a straight 
     }
   }
 });
+test("a double does not shift the following two lanes", () => {
+  const tiles = [
+    { a: 12, b: 6 },
+    { a: 6, b: 9 },
+    { a: 9, b: 9 },
+    { a: 9, b: 4 },
+    { a: 4, b: 8 },
+    { a: 8, b: 2 },
+  ];
+  const pieces = layoutTrain(tiles, 0).dominoes;
+  close(pieces[3].center.y, pieces[1].center.y);
+  close(pieces[4].center.y, pieces[0].center.y);
+  close(pieces[5].center.y, pieces[1].center.y);
+});
+
+test("long trains condense to the first and last four tiles and expand on request", () => {
+  const tiles = Array.from({ length: 13 }, (_, i) => ({
+    id: String(i),
+    a: i,
+    b: i + 1,
+  }));
+  const lane = { key: "a", tiles };
+  const compact = layoutTable([lane], { condense: true }).trains[0];
+  assert.deepEqual(
+    compact.dominoes.map((p) => p.tile.id),
+    ["0", "9", "10", "11", "12"],
+  );
+  assert.equal(compact.hiddenCount, 8);
+  const full = layoutTable([lane], { condense: true, expanded: new Set(["a"]) })
+    .trains[0];
+  assert.equal(full.dominoes.length, 13);
+  const shift = {
+    x: full.dominoes[9].center.x - compact.dominoes[1].center.x,
+    y: full.dominoes[9].center.y - compact.dominoes[1].center.y,
+  };
+  for (let i = 0; i < 4; i++) {
+    close(
+      full.dominoes[9 + i].center.x - compact.dominoes[1 + i].center.x,
+      shift.x,
+    );
+    close(
+      full.dominoes[9 + i].center.y - compact.dominoes[1 + i].center.y,
+      shift.y,
+    );
+  }
+  close(full.target.x - compact.target.x, shift.x);
+  close(full.target.y - compact.target.y, shift.y);
+  assert.ok(
+    Math.hypot(compact.end.x, compact.end.y) <
+      Math.hypot(full.end.x, full.end.y),
+  );
+  const short = layoutTable([{ key: "a", tiles: tiles.slice(0, 5) }], {
+    condense: true,
+  }).trains[0];
+  assert.equal(short.dominoes.length, 5);
+  assert.equal(short.hiddenCount, undefined);
+});
 test("six personal trains and one community train have distinct directions and all long-train tiles", () => {
   const lanes = Array.from({ length: 7 }, (_, i) => ({
     key: i === 6 ? "community" : `p:${i}`,

@@ -1093,6 +1093,22 @@ kbd {
   display: grid;
   gap: 4px;
 }
+.train-gap {
+  width: 40px;
+  height: 26px;
+  border: 1px solid #d6b36c;
+  border-radius: 12px;
+  background: #f7ecd5;
+  color: #493728;
+  font:
+    700 11px system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+.train-gap:hover,
+.train-gap:focus-visible {
+  background: #fff6df;
+}
 .train-line {
   display: flex;
   align-items: center;
@@ -1111,6 +1127,7 @@ kbd {
   border-radius: 4px;
   padding: 4px;
   font-size: 10px;
+  flex-shrink: 0;
 }
 .train-line button.valid {
   background: #fae7a8;
@@ -1118,6 +1135,13 @@ kbd {
 }
 .train-values {
   color: #6b786c;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+.train-values .train-chip {
+  flex: none;
 }
 .dynamic-seat {
   position: absolute;
@@ -1177,6 +1201,13 @@ kbd {
 }
 .round-results b {
   color: #324b3b;
+}
+.score-line + .score-line {
+  margin-top: 7px;
+}
+.score-line small {
+  display: block;
+  overflow-wrap: anywhere;
 }
 .sound-setting {
   display: flex;

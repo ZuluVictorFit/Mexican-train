@@ -30,6 +30,8 @@ import {
     lastDrawNotice = "",
     handViewBeforeFit = null,
     autoHandFit = false,
+    expandedTrains = new Set(),
+    expandedRound = "",
     boardView = { zoom: 1, x: 0, y: 0, radius: 190, svg: null };
   const tell = (s) => {
     const n = $("notice");
@@ -505,7 +507,15 @@ import {
       })),
       { key: "community", name: "Community", color: "#bc8b3b" },
     ].map((lane) => ({ ...lane, tiles: g.trains[lane.key].tiles }));
-    const table = layoutTable(lanes);
+    const roundKey = `${room.code}:${g.round}`;
+    if (expandedRound !== roundKey) {
+      expandedRound = roundKey;
+      expandedTrains.clear();
+    }
+    const table = layoutTable(lanes, {
+      condense: true,
+      expanded: expandedTrains,
+    });
     boardView.trains = table.trains;
     if (boardView.round !== g.round) {
       boardView.zoom = 1;
@@ -615,6 +625,14 @@ import {
       hub.append(num);
     }
     svg.append(hub);
+    function toggleTrain(key) {
+      if (expandedTrains.has(key)) expandedTrains.delete(key);
+      else expandedTrains.add(key);
+      boardView.manual = true;
+      boardView.fitActive = true;
+      boardView.zoom = 1;
+      board(g);
+    }
     // The markers sit on the hub at the start of each route, independent of
     // how far the train has grown. They are visual only and never block input.
     for (const train of table.trains) {
@@ -635,6 +653,26 @@ import {
       svg.append(marker);
     }
     for (const train of table.trains) {
+      if (train.hiddenCount) {
+        const holder = svgElement("foreignObject", {
+          x: train.gap.x - 21,
+          y: train.gap.y - 14,
+          width: 42,
+          height: 28,
+        });
+        const expand = document.createElement("button");
+        expand.type = "button";
+        expand.className = "train-gap";
+        expand.dataset.trainExpand = train.key;
+        expand.textContent = `+${train.hiddenCount}`;
+        expand.setAttribute(
+          "aria-label",
+          `Expand ${train.name}, ${train.hiddenCount} hidden dominoes`,
+        );
+        expand.addEventListener("click", () => toggleTrain(train.key));
+        holder.append(expand);
+        svg.append(holder);
+      }
       for (const piece of train.dominoes) {
         const group = svgElement("g", {
           transform: `translate(${piece.center.x} ${piece.center.y}) rotate(${piece.angle})`,
@@ -744,12 +782,31 @@ import {
         focusTrainEnd(train);
         updateBoardView();
       });
-      row.append(title, values, focus, button);
+      row.append(title, values, focus);
+      if (train.tiles.length > 5) {
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "toggle-train";
+        toggle.textContent = expandedTrains.has(train.key)
+          ? "Condense"
+          : `Expand (+${train.hiddenCount})`;
+        toggle.setAttribute(
+          "aria-label",
+          `${expandedTrains.has(train.key) ? "Condense" : "Expand"} ${train.name}`,
+        );
+        toggle.addEventListener("click", () => toggleTrain(train.key));
+        row.append(toggle);
+      }
+      row.append(button);
       list.append(row);
     }
     let pan = null;
     svg.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0 || event.target.closest("[data-train]")) return;
+      if (
+        event.button !== 0 ||
+        event.target.closest("[data-train], [data-train-expand]")
+      )
+        return;
       pan = {
         pointer: event.pointerId,
         x: event.clientX,
@@ -862,6 +919,8 @@ import {
     const g = r.game,
       wasMyTurn = previous?.game?.turn === r.me;
     if (previous?.code === r.code && previous.game === null && g.round === 1) {
+      expandedTrains.clear();
+      expandedRound = "";
       const key = `mexican-train-layout-${r.code}-${r.me}-${g.round}`;
       try {
         localStorage.removeItem(key);
@@ -1013,17 +1072,23 @@ import {
                   `Waiting for ${turnPlayer?.name || "the next player"}.`;
     const results = $("roundResults");
     results.replaceChildren();
-    if (g.phase !== "playing" && g.results.length) {
-      const last = g.results.at(-1),
-        heading = document.createElement("b");
-      heading.textContent = "Round scores";
-      results.append(heading);
-      for (const score of last.scores) {
-        const line = document.createElement("div"),
-          who = g.players.find((p) => p.id === score.id);
-        line.textContent = `${who?.name}: ${score.points} points`;
-        results.append(line);
+    for (const player of g.players) {
+      const line = document.createElement("div");
+      line.className = "score-line";
+      const total = document.createElement("b");
+      total.textContent = `${player.name}: ${player.score} points`;
+      line.append(total);
+      if (g.results.length) {
+        const rounds = document.createElement("small");
+        rounds.textContent = g.results
+          .map((result) => {
+            const score = result.scores.find((s) => s.id === player.id);
+            return `${result.engine}–${result.engine}: ${score?.points ?? 0}`;
+          })
+          .join(" · ");
+        line.append(rounds);
       }
+      results.append(line);
     }
     renderHand();
     board(g);

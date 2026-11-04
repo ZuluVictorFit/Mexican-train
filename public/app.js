@@ -1,4 +1,5 @@
 import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
+import { initialHandLayout, nextHandPosition } from "./hand-layout.js";
 
 (() => {
   "use strict";
@@ -21,6 +22,8 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
     layoutKey = "",
     latestDraw = null,
     lastDrawNotice = "",
+    handViewBeforeFit = null,
+    autoHandFit = false,
     boardView = { zoom: 1, x: 0, y: 0, radius: 190, svg: null };
   const tell = (s) => {
     const n = $("notice");
@@ -50,10 +53,16 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
           })),
         ),
       );
+      localStorage.setItem(
+        `${layoutKey}:scale`,
+        String(handViewBeforeFit?.scale ?? scale),
+      );
+      localStorage.setItem(`${layoutKey}:auto-fit`, autoHandFit ? "1" : "0");
     } catch {}
   }
   function loadHand(g) {
     const key = `mexican-train-layout-${room.code}-${room.me}-${g.round}`;
+    const changedHand = key !== layoutKey;
     let old = [];
     try {
       old =
@@ -61,25 +70,57 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
           ? state.tiles
           : JSON.parse(localStorage.getItem(key) || "[]");
     } catch {}
+    if (changedHand && old.length) {
+      try {
+        const savedScale = Number(localStorage.getItem(`${key}:scale`));
+        if (Number.isFinite(savedScale) && savedScale > 0 && savedScale <= 1)
+          scale = savedScale;
+        autoHandFit = localStorage.getItem(`${key}:auto-fit`) === "1";
+      } catch {}
+    }
     layoutKey = key;
+    if (!old.length && g.hand.length) {
+      const initial = initialHandLayout(
+        g.hand.length,
+        viewport.clientWidth,
+        viewport.clientHeight,
+      );
+      scale = initial.scale;
+      autoHandFit = true;
+      handViewBeforeFit = null;
+      $("fitButton").textContent = "Fit hand";
+      state.tiles = g.hand.map((t, i) => ({
+        ...t,
+        ...initial.positions[i],
+        z: i + 1,
+        flip: false,
+        rotation: 0,
+      }));
+      if (!tile(selected)) selected = null;
+      save();
+      return;
+    }
     const occupied = old.filter((o) => g.hand.some((t) => t.id === o.id));
     state.tiles = g.hand.map((t, i) => {
       let place = occupied.find((o) => o.id === t.id);
       if (!place) {
-        let spot;
-        for (let y = 65; y < H - 25 && !spot; y += 82)
-          for (let x = 85; x < W - 50; x += 142)
-            if (
-              occupied.every(
-                (o) => Math.abs(o.x - x) > 105 || Math.abs(o.y - y) > 65,
-              )
-            ) {
-              spot = { x, y };
-              break;
-            }
+        const left = viewport.scrollLeft / scale,
+          top = viewport.scrollTop / scale;
+        const spot = nextHandPosition(
+          occupied,
+          {
+            left,
+            top,
+            right: left + viewport.clientWidth / scale,
+            bottom: top + viewport.clientHeight / scale,
+            scale,
+          },
+          W,
+          H,
+        );
         place = {
           id: t.id,
-          ...(spot || { x: 85, y: 65 }),
+          ...spot,
           z: Math.max(0, ...occupied.map((o) => o.z || 0)) + 1,
           flip: false,
           rotation: 0,
@@ -95,6 +136,48 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
     space.style.width = `${W * scale}px`;
     space.style.height = `${H * scale}px`;
     canvas.style.transform = `scale(${scale})`;
+  }
+  function fitHand() {
+    autoHandFit = false;
+    if (handViewBeforeFit) {
+      scale = handViewBeforeFit.scale;
+      updateSize();
+      viewport.scrollLeft = handViewBeforeFit.left;
+      viewport.scrollTop = handViewBeforeFit.top;
+      handViewBeforeFit = null;
+      $("fitButton").textContent = "Fit hand";
+      save();
+      return;
+    }
+    if (!state.tiles.length) return;
+    const edges = state.tiles.map((t) => {
+      const vertical = t.rotation % 180 !== 0;
+      return {
+        left: t.x - (vertical ? 26 : 50),
+        right: t.x + (vertical ? 26 : 50),
+        top: t.y - (vertical ? 50 : 26),
+        bottom: t.y + (vertical ? 50 : 26),
+      };
+    });
+    const left = Math.min(...edges.map((e) => e.left)),
+      right = Math.max(...edges.map((e) => e.right));
+    const top = Math.min(...edges.map((e) => e.top)),
+      bottom = Math.max(...edges.map((e) => e.bottom));
+    handViewBeforeFit = {
+      scale,
+      left: viewport.scrollLeft,
+      top: viewport.scrollTop,
+    };
+    scale = Math.min(
+      1,
+      (viewport.clientWidth - 16) / (right - left),
+      (viewport.clientHeight - 16) / (bottom - top),
+    );
+    updateSize();
+    viewport.scrollLeft = Math.max(0, left * scale - 8);
+    viewport.scrollTop = Math.max(0, top * scale - 8);
+    $("fitButton").textContent = "Restore view";
+    save();
   }
   function position(el, t) {
     el.style.left = `${t.x}px`;
@@ -134,6 +217,7 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
   function rotate() {
     const t = tile(selected);
     if (t) {
+      autoHandFit = false;
       t.rotation = (t.rotation + 90) % 360;
       clamp(t);
       refresh(t);
@@ -315,7 +399,7 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
       t.x = drag.x;
       t.y = drag.y;
       position(drag.el, t);
-    }
+    } else autoHandFit = false;
     cleanup();
     save();
     if (target && !fullscreen) play(target.dataset.train);
@@ -793,6 +877,20 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
     if (!r.game) return;
     const g = r.game,
       wasMyTurn = previous?.game?.turn === r.me;
+    if (previous?.code === r.code && previous.game === null && g.round === 1) {
+      const key = `mexican-train-layout-${r.code}-${r.me}-${g.round}`;
+      try {
+        localStorage.removeItem(key);
+        localStorage.removeItem(`${key}:scale`);
+      } catch {}
+      if (layoutKey === key) {
+        layoutKey = "";
+        state.tiles = [];
+      }
+      handViewBeforeFit = null;
+      viewport.scrollLeft = 0;
+      viewport.scrollTop = 0;
+    }
     const sameRound =
       previous?.code === r.code && previous?.game?.round === g.round;
     const oldIds = sameRound
@@ -955,7 +1053,56 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
     boardView.fitActive = true;
     updateBoardView();
   });
+  $("boardViewport").addEventListener(
+    "wheel",
+    (event) => {
+      if (!boardView.svg || !event.deltaY) return;
+      const rect = boardView.svg.getBoundingClientRect();
+      const nx = (event.clientX - rect.left) / Math.max(1, rect.width) - 0.5;
+      const ny = (event.clientY - rect.top) / Math.max(1, rect.height) - 0.5;
+      const aspect =
+        $("board").clientWidth / Math.max(1, $("board").clientHeight);
+      const before = boardView.radius / boardView.zoom;
+      const mode =
+        event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1;
+      const factor = Math.exp(
+        -Math.max(-500, Math.min(500, event.deltaY * mode)) * 0.0015,
+      );
+      const nextZoom = Math.max(1, Math.min(32, boardView.zoom * factor));
+      if (nextZoom === boardView.zoom) return;
+      event.preventDefault();
+      const after = boardView.radius / nextZoom;
+      boardView.x += nx * 2 * aspect * (before - after);
+      boardView.y += ny * 2 * (before - after);
+      boardView.zoom = nextZoom;
+      boardView.manual = true;
+      boardView.fitActive = false;
+      updateBoardView();
+    },
+    { passive: false },
+  );
   window.addEventListener("resize", updateBoardView);
+  const handResize = new ResizeObserver(() => {
+    if (!autoHandFit || !state.tiles.length || handViewBeforeFit || !layoutKey)
+      return;
+    const right = Math.max(
+      ...state.tiles.map((t) => t.x + (t.rotation % 180 ? 26 : 50)),
+    );
+    const bottom = Math.max(
+      ...state.tiles.map((t) => t.y + (t.rotation % 180 ? 50 : 26)),
+    );
+    const nextScale = Math.min(
+      1,
+      (viewport.clientWidth - 8) / right,
+      (viewport.clientHeight - 8) / bottom,
+    );
+    if (nextScale > 0 && Math.abs(nextScale - scale) > 0.001) {
+      scale = nextScale;
+      updateSize();
+      save();
+    }
+  });
+  handResize.observe(viewport);
   $("createRoom").addEventListener("click", () =>
     send(
       "create",
@@ -1021,16 +1168,7 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
   $("expandButton").addEventListener("click", () => setFullscreen(!fullscreen));
   $("flipButton").addEventListener("click", flip);
   $("rotateButton").addEventListener("click", rotate);
-  $("fitButton").addEventListener("click", () => {
-    if (scale < 0.99) {
-      scale = 1;
-      $("fitButton").textContent = "Fit hand";
-    } else {
-      scale = Math.min(viewport.clientWidth / W, viewport.clientHeight / H, 1);
-      $("fitButton").textContent = scale < 0.99 ? "Actual size" : "Fit hand";
-    }
-    updateSize();
-  });
+  $("fitButton").addEventListener("click", fitHand);
   $("playButton").addEventListener("click", () => {
     if (fullscreen) setFullscreen(false);
     tell("Choose a glowing train.");
@@ -1062,6 +1200,7 @@ import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
       e.preventDefault();
       const t = tile(e.target.dataset.id);
       if (!t) return;
+      autoHandFit = false;
       const d = e.shiftKey ? 10 : 2;
       t.x += e.key === "ArrowRight" ? d : e.key === "ArrowLeft" ? -d : 0;
       t.y += e.key === "ArrowDown" ? d : e.key === "ArrowUp" ? -d : 0;

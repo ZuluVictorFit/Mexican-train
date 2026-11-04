@@ -1,39 +1,54 @@
-// Board coordinates are independent of screen size. Each domino begins where
-// the previous one ends; doubles occupy their shorter dimension along the train.
+// Board coordinates are independent of screen size. Matching halves touch along
+// a compact, outward-moving stagger; doubles turn across that pattern.
 export const TILE_LENGTH = 72;
 export const TILE_WIDTH = 36;
 export const HUB_RADIUS = 66;
-const START = HUB_RADIUS + 4;
 
 export function layoutTrain(tiles, angle) {
-  let cursor = START;
+  // The train moves outward along its local x-axis. Ordinary dominoes alternate
+  // which half points toward the previous tile, creating a compact stagger.
+  // Each matching half shares a section of the boundary with its neighbor.
+  let cursor = HUB_RADIUS + 20;
+  let normalCount = 0;
+  let outgoingY = -TILE_WIDTH / 2 - 5;
   const radians = (angle * Math.PI) / 180;
-  const point = (distance) => ({
-    x: Math.cos(radians) * distance,
-    y: Math.sin(radians) * distance,
+  const point = (x, y) => ({
+    x: Math.cos(radians) * x - Math.sin(radians) * y,
+    y: Math.sin(radians) * x + Math.cos(radians) * y,
   });
-  const dominoes = tiles.map((tile) => {
+  const dominoes = [];
+  for (const tile of tiles) {
     const isDouble = tile.a === tile.b;
-    const length = isDouble ? TILE_WIDTH : TILE_LENGTH;
-    const start = point(cursor);
-    const center = point(cursor + length / 2);
+    const length = isDouble ? TILE_LENGTH : TILE_WIDTH;
+    const firstHalfOffset =
+      normalCount % 2 === 0 ? -TILE_WIDTH / 2 : TILE_WIDTH / 2;
+    const centerY = isDouble ? outgoingY : normalCount % 2 === 0 ? -5 : 5;
+    const incomingY = isDouble ? centerY : centerY + firstHalfOffset;
+    const nextOutgoingY = isDouble ? centerY : centerY - firstHalfOffset;
+    const sharedY = dominoes.length ? (outgoingY + incomingY) / 2 : incomingY;
+    const start = point(cursor, sharedY);
+    if (dominoes.length) dominoes.at(-1).end = start;
+    const center = point(cursor + length / 2, centerY);
     cursor += length;
-    return {
+    const piece = {
       tile,
       start,
       center,
-      end: point(cursor),
-      angle: angle + (isDouble ? 90 : 0),
+      end: point(cursor, nextOutgoingY),
+      angle: angle + (isDouble ? 0 : firstHalfOffset < 0 ? 90 : -90),
       length,
     };
-  });
+    dominoes.push(piece);
+    outgoingY = nextOutgoingY;
+    if (!isDouble) normalCount++;
+  }
   return {
     angle,
     dominoes,
-    end: point(cursor),
-    target: point(cursor + 23),
-    label: point(cursor + 65),
-    extent: cursor + 150,
+    end: point(cursor, outgoingY),
+    target: point(cursor + 23, outgoingY),
+    label: point(cursor + 65, outgoingY),
+    extent: cursor + Math.abs(outgoingY) + 150,
   };
 }
 

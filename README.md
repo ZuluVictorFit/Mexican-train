@@ -38,9 +38,12 @@ profile share a seat. Run `npm test` for the rules and server tests.
 
 When a player cannot play, **Draw** draws one tile. A playable draw is highlighted
 and brought into view; if it cannot be played, the player's train opens and the
-turn passes. After an opening run, use **End opening turn**. The table draws all
-dominoes end to end, with doubles sideways. Use the table's zoom, drag-to-pan,
-**Fit table**, and each train's **Focus** control to inspect longer trains.
+turn passes. After an opening run, use **End opening turn**. The table shows
+connected dominoes in a compact stagger, with doubles turned across the pattern.
+Use the mouse wheel or zoom buttons, drag-to-pan, **Fit table**, and each train's
+**Focus** control to inspect longer trains. Freshly dealt tiles fit in the hand;
+you can then arrange them freely. **Fit hand** and **Restore view** change only
+the view, without rearranging tiles.
 
 For the optional browser regression checks, install Playwright's Chromium once
 with `npx playwright install chromium`, then run `npm run test:browser`. To use

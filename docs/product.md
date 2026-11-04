@@ -9,10 +9,12 @@ Planning date: November 3, 2026 (user timezone). Status: pre-build.
 | Audience | Private online multiplayer with friends; one host; guests join with a code. |
 | Devices | Desktop and tablet first. Phones later. |
 | Table size | Up to six players. Proposed minimum: two. |
-| Private hand | Bounded tray with continuous free placement, small overlaps, no grid. |
+| Private hand | Bounded tray with continuous free placement, small overlaps, no grid. A fresh deal must fit visibly in the compact hand. |
 | Hand orientation | Click swaps a tile's two ends; R rotates it 90 degrees. |
 | Idle board | Perspective suggesting sitting at an actual table. |
 | Active board | Animate into a clearer playing view on the player's turn; animation details pending. |
+| Train layout | Trains move outward in a compact alternating stagger, with matching values connected. Keep the quick-view train list. |
+| Table navigation | Keep the zoom buttons and support mouse-wheel zoom; retain dragging to pan. |
 | Domino faces | Actual numbers rather than dots, with consistent colors per number. |
 | Community train | Exactly one per round; no option to create multiple community trains. |
 | Community start | After opening turns, any player may start the community train, including a player who has not started their personal train. |
@@ -41,7 +43,7 @@ Planning date: November 3, 2026 (user timezone). Status: pre-build.
 | Scoring | Sum printed numbers remaining in hand; 0–0 scores zero; lowest total wins. If final totals tie, the tied player with the lowest final-round score wins; choose randomly among anyone still tied. |
 | Starting player | Choose randomly for the first round; the previous round's winner starts each later round. In a blocked round, the lowest score for that round wins; if tied, choose randomly among the tied players. |
 | Future themes | Plan for interchangeable themes, including holidays; do not build holiday themes now. |
-| Hand space | A full-screen hand workspace can be opened and closed, with enough room to arrange long chains freely. |
+| Hand space | A full-screen hand workspace can be opened and closed, with enough room to arrange long chains freely; it remains optional. |
 
 ## Recommended first-version boundaries (not yet approved)
 

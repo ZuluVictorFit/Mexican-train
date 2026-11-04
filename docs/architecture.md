@@ -17,11 +17,13 @@ third-party accounts are required locally.
 | Persistence | SQLite on a persistent volume for one server instance | Small operational footprint; transactional game snapshots and recovery. |
 | Verification | Node test runner; browser checks for interaction and multiplayer | Tests the actual risky behaviors. |
 
-The table now lays out every domino in an SVG train, with perpendicular doubles,
-zoom, pan, fit, and per-train focus. Very long trains may extend beyond the
-current zoomed view; Fit table shows the whole board. A drawn tile is brought
-into view, and turn instructions explain whether it must be played or the turn
-has passed.
+The table lays out every domino in a compact outward stagger, with matching halves
+touching and doubles turned across the pattern. Mouse-wheel and button zoom, pan,
+fit, and per-train focus remain available. Very long trains may extend beyond the
+current zoomed view; Fit table shows the whole board. A fresh 12- or 15-tile hand
+is arranged and scaled to fit the compact tray; subsequent user arrangements are
+not automatically rearranged. A drawn tile is brought into view, and turn
+instructions explain whether it must be played or the turn has passed.
 
 Do not add Three.js, Redis, a separate API platform, or a second server language
 unless the camera prototype or hosting constraints justify it. Validate CSS/SVG

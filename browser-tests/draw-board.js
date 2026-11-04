@@ -120,6 +120,25 @@ db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
     commands: {},
   }),
 );
+const sixSeats = Array.from({ length: 6 }, (_, i) => ({
+  id: `seat${i}`,
+  session: i < 2 ? sessions[i] : String(i).repeat(48),
+  name: `Player ${i + 1}`,
+  color: `#${(0x223344 + i * 0x101010).toString(16).padStart(6, "0")}`,
+}));
+const sixGame = newGame(sixSeats, 12, () => 0);
+sixGame.turn = 0;
+db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+  "TEST27",
+  JSON.stringify({
+    code: "TEST27",
+    host: "seat0",
+    seats: sixSeats,
+    revision: 0,
+    game: sixGame,
+    commands: {},
+  }),
+);
 db.close();
 const port = 32000 + Math.floor(Math.random() * 10000),
   url = `http://127.0.0.1:${port}`,
@@ -160,6 +179,19 @@ try {
     );
     await p.reload();
     await p.waitForSelector("#gameArea:not([hidden])");
+    const initialViewport = await p.locator("#handViewport").boundingBox();
+    for (const item of await p.locator(".domino").all()) {
+      const bounds = await item.boundingBox();
+      assert(
+        bounds.x >= initialViewport.x - 1 &&
+          bounds.y >= initialViewport.y - 1 &&
+          bounds.x + bounds.width <=
+            initialViewport.x + initialViewport.width + 1 &&
+          bounds.y + bounds.height <=
+            initialViewport.y + initialViewport.height + 1,
+        "every initially dealt domino must fit in the compact hand",
+      );
+    }
     let otherContext, otherPage;
     if (!match) {
       otherContext = await browser.newContext({
@@ -269,7 +301,7 @@ try {
   assert.notEqual(before, after);
   await p.click("#fitBoard");
   const fitted = await p.locator(".rail-board").getAttribute("viewBox");
-  assert.notEqual(fitted, before);
+  assert.notEqual(fitted, after);
   const boardBox = await p.locator(".rail-board").boundingBox();
   for (const domino of await p.locator(".rail-domino").all()) {
     const box = await domino.boundingBox();
@@ -281,6 +313,51 @@ try {
       "Fit table must keep every played domino inside the table viewport",
     );
   }
+  const wheelBox = await p.locator(".rail-board").boundingBox();
+  const wheelX = wheelBox.x + wheelBox.width * 0.35;
+  const wheelY = wheelBox.y + wheelBox.height * 0.4;
+  const beforeWheel = fitted.split(" ").map(Number);
+  await p.mouse.move(wheelX, wheelY);
+  await p.mouse.wheel(0, -180);
+  await p.waitForFunction(
+    (old) =>
+      document.querySelector(".rail-board").getAttribute("viewBox") !== old,
+    fitted,
+  );
+  const afterWheel = (await p.locator(".rail-board").getAttribute("viewBox"))
+    .split(" ")
+    .map(Number);
+  assert(afterWheel[2] < beforeWheel[2], "scrolling up should zoom in");
+  assert(
+    Math.abs(
+      beforeWheel[0] +
+        0.35 * beforeWheel[2] -
+        (afterWheel[0] + 0.35 * afterWheel[2]),
+    ) < 1,
+    "wheel zoom should stay anchored under the pointer horizontally",
+  );
+  assert(
+    Math.abs(
+      beforeWheel[1] +
+        0.4 * beforeWheel[3] -
+        (afterWheel[1] + 0.4 * afterWheel[3]),
+    ) < 1,
+    "wheel zoom should stay anchored under the pointer vertically",
+  );
+  await p.click("#fitBoard");
+  const boardBeforeHandScroll = await p
+    .locator(".rail-board")
+    .getAttribute("viewBox");
+  await p.locator("#handViewport").scrollIntoViewIfNeeded();
+  const handArea = await p.locator("#handViewport").boundingBox();
+  await p.mouse.move(handArea.x + handArea.width / 2, handArea.y + 30);
+  await p.mouse.wheel(0, 120);
+  await p.waitForTimeout(50);
+  assert.equal(
+    await p.locator(".rail-board").getAttribute("viewBox"),
+    boardBeforeHandScroll,
+    "scrolling the hand must not zoom the table",
+  );
   await p.getByRole("button", { name: "Focus Your train" }).click();
   assert.notEqual(
     await p.locator(".rail-board").getAttribute("viewBox"),
@@ -340,6 +417,129 @@ try {
     "All 13 dominoes render on the table; zoom, fit and focus passed.",
   );
   await c.close();
+  for (const dimensions of [
+    { width: 1024, height: 768 },
+    { width: 1440, height: 900 },
+  ]) {
+    const context = await browser.newContext({ viewport: dimensions });
+    await context.addCookies([{ name: "mt_session", value: sessions[0], url }]);
+    const page = await context.newPage();
+    await page.goto(url);
+    await page.evaluate(() =>
+      localStorage.setItem("mexican-train-room", "TEST27"),
+    );
+    await page.reload();
+    await page.waitForSelector("#gameArea:not([hidden])");
+    assert.equal(await page.locator(".domino").count(), 12);
+    const tray = await page.locator("#handViewport").boundingBox();
+    for (const domino of await page.locator(".domino").all()) {
+      const box = await domino.boundingBox();
+      assert(
+        box.x >= tray.x - 1 &&
+          box.y >= tray.y - 1 &&
+          box.x + box.width <= tray.x + tray.width + 1 &&
+          box.y + box.height <= tray.y + tray.height + 1,
+        `all twelve tiles must fit at ${dimensions.width}x${dimensions.height}`,
+      );
+    }
+    if (dimensions.width === 1440) {
+      const positions = await page
+        .locator(".domino")
+        .evaluateAll((els) => els.map((el) => el.getAttribute("style")));
+      await page.setViewportSize({ width: 1024, height: 768 });
+      await page.waitForFunction(() => {
+        const tray = document
+          .querySelector("#handViewport")
+          .getBoundingClientRect();
+        return [...document.querySelectorAll(".domino")].every((el) => {
+          const box = el.getBoundingClientRect();
+          return (
+            box.left >= tray.left - 1 &&
+            box.top >= tray.top - 1 &&
+            box.right <= tray.right + 1 &&
+            box.bottom <= tray.bottom + 1
+          );
+        });
+      });
+      assert.deepEqual(
+        await page
+          .locator(".domino")
+          .evaluateAll((els) => els.map((el) => el.getAttribute("style"))),
+        positions,
+        "resizing must keep freely arranged positions unchanged",
+      );
+      await page.setViewportSize(dimensions);
+    }
+    const first = page.locator(".domino").first();
+    await first.scrollIntoViewIfNeeded();
+    const beforeMove = await first.getAttribute("style");
+    const firstBox = await first.boundingBox();
+    await page.mouse.move(
+      firstBox.x + firstBox.width / 2,
+      firstBox.y + firstBox.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      firstBox.x + firstBox.width / 2 + 13,
+      firstBox.y + firstBox.height / 2 + 11,
+      { steps: 4 },
+    );
+    await page.mouse.up();
+    const afterMove = await first.getAttribute("style");
+    assert.notEqual(
+      afterMove,
+      beforeMove,
+      "hand placement must remain freely movable",
+    );
+    await page.reload();
+    await page.waitForSelector("#gameArea:not([hidden])");
+    assert.equal(
+      await page.locator(".domino").first().getAttribute("style"),
+      afterMove,
+      "reconnecting must preserve the player's hand arrangement",
+    );
+    await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(
+        (k) => k.startsWith("mexican-train-layout-") && !k.endsWith(":scale"),
+      );
+      const layout = JSON.parse(localStorage.getItem(key));
+      layout[0].x = 1400;
+      layout[0].y = 700;
+      localStorage.setItem(key, JSON.stringify(layout));
+    });
+    await page.reload();
+    await page.waitForSelector("#gameArea:not([hidden])");
+    const positionBeforeFit = await page
+      .locator(".domino")
+      .first()
+      .getAttribute("style");
+    await page.click("#fitButton");
+    assert.equal(
+      await page.locator("#fitButton").textContent(),
+      "Restore view",
+    );
+    const fittedTray = await page.locator("#handViewport").boundingBox();
+    for (const domino of await page.locator(".domino").all()) {
+      const bounds = await domino.boundingBox();
+      assert(
+        bounds.x >= fittedTray.x - 1 &&
+          bounds.y >= fittedTray.y - 1 &&
+          bounds.x + bounds.width <= fittedTray.x + fittedTray.width + 1 &&
+          bounds.y + bounds.height <= fittedTray.y + fittedTray.height + 1,
+        "Fit hand must reveal every tile without rearranging it",
+      );
+    }
+    await page.click("#fitButton");
+    assert.equal(
+      await page.locator(".domino").first().getAttribute("style"),
+      positionBeforeFit,
+      "fitting and restoring must not move any tile",
+    );
+    await context.close();
+  }
+  console.log(
+    "Initial 12- and 15-tile hands fit the compact tray on tablet and desktop.",
+  );
   const cv = await browser.newContext({
     viewport: { width: 1440, height: 900 },
   });

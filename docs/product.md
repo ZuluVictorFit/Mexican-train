@@ -50,6 +50,9 @@ hub. The community train has a marker at its hub position, including before
 its first tile is played. The personal marker disappears when the owner closes
 their train by playing on it.
 
+The locomotive marker uses a small projected 3D model. A fuller environment
+that feels like sitting around a table with friends is a later refinement.
+
 ## Recommended first-version boundaries (not yet approved)
 
 Anonymous display names, private unlisted rooms, 2–6 human players, a double-12

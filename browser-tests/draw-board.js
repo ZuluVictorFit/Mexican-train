@@ -181,6 +181,12 @@ try {
     await p.reload();
     await p.waitForSelector("#gameArea:not([hidden])");
     assert.equal(await p.locator('[data-train-marker="community"]').count(), 1);
+    assert(
+      (await p
+        .locator('[data-train-marker="community"] .locomotive-model polygon')
+        .count()) > 8,
+      "the community marker renders the locomotive's projected 3D faces",
+    );
     assert.equal(await p.locator('[data-train-marker="p:seat0"]').count(), 0);
     const initialViewport = await p.locator("#handViewport").boundingBox();
     for (const item of await p.locator(".domino").all()) {
@@ -263,6 +269,12 @@ try {
         document.querySelector("#turnLabel").textContent.includes("Morgan"),
       );
       assert.equal(await p.locator('[data-train-marker="p:seat0"]').count(), 1);
+      assert.equal(
+        await p
+          .locator('[data-train-marker="p:seat0"] .locomotive-model')
+          .count(),
+        1,
+      );
       await otherPage.waitForSelector('[data-train-marker="p:seat0"]');
       assert.equal(
         await otherPage.locator('[data-train-marker="p:seat0"]').count(),

@@ -1,4 +1,5 @@
 import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
+import { locomotiveModel } from "./locomotive.js";
 import {
   HAND_WORKSPACE_SCALE,
   initialHandLayout,
@@ -632,30 +633,13 @@ import {
       });
       marker.append(
         svgElement("circle", {
-          r: 13,
+          r: 14,
           fill: "var(--marker-background, #352a21)",
           stroke: "var(--marker-border, #fff1cd)",
           "stroke-width": 1.5,
         }),
       );
-      marker.append(
-        svgElement("path", {
-          d: "M-9 -1v-5h6v2h6v-3h3v3h2v7H-9z",
-          fill: train.color,
-          stroke: "var(--marker-border, #fff1cd)",
-          "stroke-width": 1,
-          "stroke-linejoin": "round",
-        }),
-      );
-      for (const x of [-6, 1, 6])
-        marker.append(
-          svgElement("circle", {
-            cx: x,
-            cy: 4,
-            r: 2,
-            fill: "var(--marker-border, #fff1cd)",
-          }),
-        );
+      marker.append(locomotiveModel(svgElement, train.color));
       svg.append(marker);
     }
     for (const train of table.trains) {

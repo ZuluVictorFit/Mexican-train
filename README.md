@@ -36,6 +36,16 @@ locally, open a normal and a private/incognito browser window, create a table in
 one, and join with its code in the other. Multiple windows sharing one browser
 profile share a seat. Run `npm test` for the rules and server tests.
 
+When a player cannot play, **Draw** draws one tile. A playable draw is highlighted
+and brought into view; if it cannot be played, the player's train opens and the
+turn passes. After an opening run, use **End opening turn**. The table draws all
+dominoes end to end, with doubles sideways. Use the table's zoom, drag-to-pan,
+**Fit table**, and each train's **Focus** control to inspect longer trains.
+
+For the optional browser regression checks, install Playwright's Chromium once
+with `npx playwright install chromium`, then run `npm run test:browser`. To use
+an existing Chromium installation instead, set `CHROMIUM_PATH` to its executable.
+
 The server uses `game.sqlite` in its working directory. Set `DATA_PATH` to a
 durable writable location when hosting. The database contains private hands and
 session credentials; do not publish or commit it. `PORT` controls the listening

@@ -156,3 +156,36 @@ test("complete games conserve every tile across all rounds for 2, 4 and 6 player
       assert(g.players.some((p) => p.id === g.gameWinner));
     }
 });
+
+test("a playable opening draw stays in hand, must be played, and permits an opening run", () => {
+  let g = setup();
+  g.players[0].hand = [t(1, 2), t(3, 4)];
+  g.boneyard = [t(1, 12), t(0, 5)];
+  g = act(g, "p0", { type: "draw" }, rand);
+  assert.equal(g.turn, 0);
+  assert.equal(g.drawn, "1-12");
+  assert.deepEqual(legalMoves(g, "p0"), [{ tile: "1-12", train: "p:p0" }]);
+  assert.throws(() => act(g, "p0", { type: "draw" }, rand));
+  g = act(g, "p0", { type: "play", tile: "1-12", train: "p:p0" }, rand);
+  assert.equal(g.turn, 0);
+  assert.equal(g.drawn, null);
+  assert.equal(g.openingPlayed, true);
+  assert.deepEqual(legalMoves(g, "p0"), [{ tile: "1-2", train: "p:p0" }]);
+  g = act(g, "p0", { type: "play", tile: "1-2", train: "p:p0" }, rand);
+  g = act(g, "p0", { type: "end-opening" }, rand);
+  assert.equal(g.turn, 1);
+});
+
+test("an unsuccessful opening draw is visible in the player hand and passes the turn", () => {
+  let g = setup();
+  g.players[0].hand = [t(2, 3)];
+  g.boneyard = [t(1, 4), t(1, 12)];
+  g = act(g, "p0", { type: "draw" }, rand);
+  assert.equal(g.turn, 1);
+  assert.equal(g.players[0].open, true);
+  assert.deepEqual(
+    viewGame(g, "p0").hand.map((t) => t.id),
+    ["2-3", "1-4"],
+  );
+  assert.equal(viewGame(g, "p0").drawn, null);
+});

@@ -1,0 +1,379 @@
+import { DatabaseSync } from "node:sqlite";
+import { spawn } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { once } from "node:events";
+import { chromium } from "playwright";
+import assert from "node:assert/strict";
+import { newGame } from "../server/game.js";
+const dir = await mkdtemp(join(tmpdir(), "train-draw-ui-")),
+  path = join(dir, "test.sqlite"),
+  db = new DatabaseSync(path);
+db.exec("CREATE TABLE rooms (code TEXT PRIMARY KEY, data TEXT NOT NULL)");
+const sessions = ["a".repeat(48), "b".repeat(48)];
+const seats = sessions.map((session, i) => ({
+  id: "seat" + i,
+  session,
+  name: i ? "Morgan" : "Avery",
+  color: i ? "#667788" : "#445566",
+}));
+const t = (a, b) => ({
+  id: `${Math.min(a, b)}-${Math.max(a, b)}`,
+  a: Math.min(a, b),
+  b: Math.max(a, b),
+});
+const hand = [
+  ...Array.from({ length: 12 }, (_, i) => t(0, i)),
+  t(1, 1),
+  t(1, 2),
+  t(1, 3),
+];
+for (const [code, draw] of [
+  ["TEST23", t(1, 12)],
+  ["TEST24", t(4, 5)],
+]) {
+  const g = newGame(seats, 12, () => 0);
+  g.turn = 0;
+  g.players[0].hand = structuredClone(hand);
+  g.players[1].hand = [t(2, 12), t(5, 6)];
+  g.boneyard = [draw, t(2, 8)];
+  db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+    code,
+    JSON.stringify({
+      code,
+      host: "seat0",
+      seats,
+      revision: 0,
+      game: g,
+      commands: {},
+    }),
+  );
+}
+const long = newGame(seats, 12, () => 0);
+long.turn = 0;
+long.players[0].first = false;
+const chain = [
+  t(12, 0),
+  t(0, 1),
+  t(1, 2),
+  t(2, 3),
+  t(3, 4),
+  t(4, 5),
+  t(5, 6),
+  t(6, 7),
+  t(7, 8),
+  t(8, 9),
+  t(9, 10),
+  t(10, 11),
+  t(11, 12),
+];
+long.trains["p:seat0"] = {
+  end: 12,
+  tiles: chain.map((q, i) => ({
+    ...q,
+    a: i === 0 ? 12 : i - 1,
+    b: i === 0 ? 0 : i,
+    by: "seat0",
+  })),
+};
+long.players[0].hand = [t(2, 12), t(3, 4)];
+db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+  "TEST25",
+  JSON.stringify({
+    code: "TEST25",
+    host: "seat0",
+    seats,
+    revision: 0,
+    game: long,
+    commands: {},
+  }),
+);
+const visual = newGame(seats, 12, () => 0);
+visual.turn = 0;
+visual.players[0].first = false;
+visual.players[0].hand = [t(1, 8), t(3, 4)];
+visual.trains["p:seat0"] = {
+  end: 8,
+  tiles: [
+    { id: "6-12", a: 12, b: 6, by: "seat0" },
+    { id: "6-6", a: 6, b: 6, by: "seat0" },
+    { id: "5-6", a: 6, b: 5, by: "seat0" },
+    { id: "5-8", a: 5, b: 8, by: "seat0" },
+  ],
+};
+visual.trains["p:seat1"] = {
+  end: 5,
+  tiles: [
+    { id: "9-12", a: 12, b: 9, by: "seat1" },
+    { id: "5-9", a: 9, b: 5, by: "seat1" },
+  ],
+};
+db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+  "TEST26",
+  JSON.stringify({
+    code: "TEST26",
+    host: "seat0",
+    seats,
+    revision: 0,
+    game: visual,
+    commands: {},
+  }),
+);
+db.close();
+const port = 32000 + Math.floor(Math.random() * 10000),
+  url = `http://127.0.0.1:${port}`,
+  server = spawn(process.execPath, ["server/index.js"], {
+    cwd: process.cwd(),
+    env: { ...process.env, DATA_PATH: path, PORT: String(port) },
+    stdio: "ignore",
+  });
+let browser;
+try {
+  for (let i = 0; i < 150; i++) {
+    try {
+      if ((await fetch(url + "/health")).ok) break;
+    } catch {}
+    await new Promise((r) => setTimeout(r, 30));
+  }
+  browser = await chromium.launch({
+    ...(process.env.CHROMIUM_PATH
+      ? { executablePath: process.env.CHROMIUM_PATH }
+      : {}),
+    args: process.env.CHROMIUM_NO_SANDBOX === "1" ? ["--no-sandbox"] : [],
+  });
+  for (const [code, match] of [
+    ["TEST23", true],
+    ["TEST24", false],
+  ]) {
+    const c = await browser.newContext({
+      viewport: { width: 1024, height: 768 },
+    });
+    await c.addCookies([{ name: "mt_session", value: sessions[0], url }]);
+    const p = await c.newPage(),
+      errs = [];
+    p.on("pageerror", (e) => errs.push(e.message));
+    await p.goto(url);
+    await p.evaluate(
+      (code) => localStorage.setItem("mexican-train-room", code),
+      code,
+    );
+    await p.reload();
+    await p.waitForSelector("#gameArea:not([hidden])");
+    let otherContext, otherPage;
+    if (!match) {
+      otherContext = await browser.newContext({
+        viewport: { width: 1024, height: 768 },
+      });
+      await otherContext.addCookies([
+        { name: "mt_session", value: sessions[1], url },
+      ]);
+      otherPage = await otherContext.newPage();
+      otherPage.on("pageerror", (e) => errs.push(e.message));
+      await otherPage.goto(url);
+      await otherPage.evaluate(
+        (code) => localStorage.setItem("mexican-train-room", code),
+        code,
+      );
+      await otherPage.reload();
+      await otherPage.waitForSelector("#gameArea:not([hidden])");
+    }
+    assert(await p.locator("#drawButton").isEnabled());
+    assert.match(
+      await p.locator("#actionBanner").textContent(),
+      /Draw one tile/,
+    );
+    await p.click("#drawButton");
+    await p.waitForSelector(".domino.drawn");
+    const drawn = p.locator(".domino.drawn");
+    assert.equal(await drawn.getAttribute("data-id"), match ? "1-12" : "4-5");
+    const bb = await drawn.boundingBox(),
+      vp = await p.locator("#handViewport").boundingBox();
+    assert(
+      bb.x >= vp.x && bb.x + bb.width <= vp.x + vp.width,
+      `drawn tile should be visible ${JSON.stringify({ bb, vp })}`,
+    );
+    assert(
+      bb.y >= 0 && bb.y + bb.height <= 768,
+      `drawn tile should be inside the browser viewport: ${JSON.stringify({ bb, vp, code })}`,
+    );
+    if (match) {
+      assert.match(
+        await p.locator("#actionBanner").textContent(),
+        /Play the highlighted tile/,
+      );
+      assert(await drawn.evaluate((e) => e.classList.contains("selected")));
+      assert.equal(await p.locator(".endpoint.valid").count(), 1);
+      const target = await p.locator(".endpoint.valid").boundingBox();
+      await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
+      await p.mouse.down();
+      await p.mouse.move(
+        target.x + target.width / 2,
+        target.y + target.height / 2,
+        { steps: 12 },
+      );
+      await p.mouse.up();
+      await p.waitForSelector("#endOpening:not([hidden])");
+      assert.match(
+        await p.locator("#actionBanner").textContent(),
+        /End opening turn/,
+      );
+    } else {
+      assert.match(
+        await p.locator("#actionBanner").textContent(),
+        /your train is open and your turn ended/,
+      );
+      assert.match(await p.locator("#turnLabel").textContent(), /Morgan/);
+      await otherPage.waitForFunction(
+        () => document.querySelector("#turnLabel").textContent === "Your turn",
+      );
+      await otherPage.locator('[data-id="2-12"]').click();
+      await otherPage.locator(".endpoint.valid").click();
+      await otherPage.waitForSelector("#endOpening:not([hidden])");
+      await otherPage.click("#endOpening");
+      await p.waitForFunction(
+        () => document.querySelector("#turnLabel").textContent === "Your turn",
+      );
+    }
+    assert.deepEqual(errs, []);
+    console.log(
+      code,
+      match
+        ? "matching draw is highlighted and playable"
+        : "nonmatching draw visibly passes and opens train",
+      "passed",
+    );
+    await otherContext?.close();
+    await c.close();
+  }
+  const c = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    hasTouch: true,
+  });
+  await c.addCookies([{ name: "mt_session", value: sessions[0], url }]);
+  const p = await c.newPage();
+  await p.goto(url);
+  await p.evaluate(() => localStorage.setItem("mexican-train-room", "TEST25"));
+  await p.reload();
+  await p.waitForSelector("#gameArea:not([hidden])");
+  assert.equal(await p.locator(".rail-domino").count(), 13);
+  const controlsBox = await p.locator(".board-controls").boundingBox();
+  const playableArea = await p.locator(".rail-board").boundingBox();
+  assert(
+    controlsBox.y + controlsBox.height <= playableArea.y + 1,
+    "table controls must not cover any playable train end",
+  );
+  const before = await p.locator(".rail-board").getAttribute("viewBox");
+  await p.click("#zoomIn");
+  const after = await p.locator(".rail-board").getAttribute("viewBox");
+  assert.notEqual(before, after);
+  await p.click("#fitBoard");
+  const fitted = await p.locator(".rail-board").getAttribute("viewBox");
+  assert.notEqual(fitted, before);
+  const boardBox = await p.locator(".rail-board").boundingBox();
+  for (const domino of await p.locator(".rail-domino").all()) {
+    const box = await domino.boundingBox();
+    assert(
+      box.x >= boardBox.x - 2 &&
+        box.y >= boardBox.y - 2 &&
+        box.x + box.width <= boardBox.x + boardBox.width + 2 &&
+        box.y + box.height <= boardBox.y + boardBox.height + 2,
+      "Fit table must keep every played domino inside the table viewport",
+    );
+  }
+  await p.getByRole("button", { name: "Focus Your train" }).click();
+  assert.notEqual(
+    await p.locator(".rail-board").getAttribute("viewBox"),
+    fitted,
+  );
+  const panBefore = await p.locator(".rail-board").getAttribute("viewBox");
+  const area = await p.locator(".rail-board").boundingBox();
+  await p.mouse.move(area.x + area.width * 0.25, area.y + area.height * 0.7);
+  await p.mouse.down();
+  await p.mouse.move(
+    area.x + area.width * 0.25 + 35,
+    area.y + area.height * 0.7 + 20,
+    { steps: 5 },
+  );
+  await p.mouse.up();
+  assert.notEqual(
+    await p.locator(".rail-board").getAttribute("viewBox"),
+    panBefore,
+    "dragging table pans the view",
+  );
+  const touchBefore = await p.locator(".rail-board").getAttribute("viewBox");
+  const touch = await c.newCDPSession(p);
+  const tx = area.x + area.width * 0.25,
+    ty = area.y + area.height * 0.7;
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: tx, y: ty }],
+  });
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [{ x: tx + 30, y: ty + 15 }],
+  });
+  await touch.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  assert.notEqual(
+    await p.locator(".rail-board").getAttribute("viewBox"),
+    touchBefore,
+    "touch dragging must pan the table",
+  );
+  await p.locator('[data-id="2-12"]').click();
+  const playableEnds = p.locator(".endpoint.valid");
+  assert.equal(await playableEnds.count(), 2);
+  const visibleBoard = await p.locator(".rail-board").boundingBox();
+  for (const end of await playableEnds.all()) {
+    const box = await end.boundingBox();
+    assert(
+      box.x >= visibleBoard.x - 2 &&
+        box.y >= visibleBoard.y - 2 &&
+        box.x + box.width <= visibleBoard.x + visibleBoard.width + 2 &&
+        box.y + box.height <= visibleBoard.y + visibleBoard.height + 2,
+      "selecting a tile must bring all playable endpoints into view",
+    );
+  }
+  console.log(
+    "All 13 dominoes render on the table; zoom, fit and focus passed.",
+  );
+  await c.close();
+  const cv = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+  });
+  await cv.addCookies([{ name: "mt_session", value: sessions[0], url }]);
+  const pv = await cv.newPage();
+  await pv.goto(url);
+  await pv.evaluate(() => localStorage.setItem("mexican-train-room", "TEST26"));
+  await pv.reload();
+  await pv.waitForSelector("#gameArea:not([hidden])");
+  assert.equal(await pv.locator(".rail-domino").count(), 6);
+  await pv.getByRole("button", { name: "Focus Morgan" }).click();
+  for (let i = 0; i < 4; i++) await pv.click("#zoomIn");
+  const remoteView = await pv.locator(".rail-board").getAttribute("viewBox");
+  await pv.locator('[data-id="1-8"]').click();
+  assert.equal(await pv.locator(".endpoint.valid").count(), 1);
+  assert.notEqual(
+    await pv.locator(".rail-board").getAttribute("viewBox"),
+    remoteView,
+    "selecting a tile must reveal its single playable endpoint",
+  );
+  const ownEnd = await pv.locator(".endpoint.valid").boundingBox();
+  const visible = await pv.locator(".rail-board").boundingBox();
+  assert(
+    ownEnd.x >= visible.x &&
+      ownEnd.y >= visible.y &&
+      ownEnd.x + ownEnd.width <= visible.x + visible.width &&
+      ownEnd.y + ownEnd.height <= visible.y + visible.height,
+  );
+  await cv.close();
+} finally {
+  await browser?.close();
+  if (server.exitCode === null) {
+    server.kill("SIGTERM");
+    await once(server, "exit");
+  }
+  await rm(dir, { recursive: true, force: true });
+}

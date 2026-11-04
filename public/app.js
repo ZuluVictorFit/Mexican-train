@@ -1,3 +1,5 @@
+import { layoutTable, TILE_LENGTH, TILE_WIDTH } from "./train-layout.js";
+
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id),
@@ -16,7 +18,10 @@
     camera = false,
     drag = null,
     timer,
-    layoutKey = "";
+    layoutKey = "",
+    latestDraw = null,
+    lastDrawNotice = "",
+    boardView = { zoom: 1, x: 0, y: 0, radius: 190, svg: null };
   const tell = (s) => {
     const n = $("notice");
     n.textContent = s;
@@ -100,6 +105,7 @@
   function select(id) {
     selected = id;
     updateSelection();
+    ensureLegalTargetsVisible();
   }
   function refresh(t) {
     const el = [...canvas.children].find((e) => e.dataset.id === t.id);
@@ -139,9 +145,13 @@
         const e = document.createElement("button");
         e.type = "button";
         e.className = "domino";
+        if (t.id === latestDraw) e.classList.add("drawn");
         e.dataset.id = t.id;
         e.innerHTML = faces(t).map(face).join("");
-        e.setAttribute("aria-label", label(t));
+        e.setAttribute(
+          "aria-label",
+          (t.id === latestDraw ? "Drawn " : "") + label(t),
+        );
         position(e, t);
         e.addEventListener("pointerdown", startDrag);
         e.addEventListener("click", (ev) => {
@@ -157,6 +167,30 @@
       `${state.tiles.length} ${state.tiles.length === 1 ? "tile" : "tiles"}`;
     updateSize();
     updateSelection();
+  }
+  function revealHandTile(id) {
+    const t = tile(id);
+    if (!t) return;
+    const margin = 60 * scale;
+    const x = t.x * scale,
+      y = t.y * scale;
+    if (x - margin < viewport.scrollLeft)
+      viewport.scrollLeft = Math.max(0, x - margin);
+    else if (x + margin > viewport.scrollLeft + viewport.clientWidth)
+      viewport.scrollLeft = x + margin - viewport.clientWidth;
+    if (y - margin < viewport.scrollTop)
+      viewport.scrollTop = Math.max(0, y - margin);
+    else if (y + margin > viewport.scrollTop + viewport.clientHeight)
+      viewport.scrollTop = y + margin - viewport.clientHeight;
+    // The hand itself can be below the browser viewport on a tablet.
+    const element = [...canvas.children].find((el) => el.dataset.id === id);
+    element?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    if (element && !fullscreen) {
+      const rect = element.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight - 12)
+        window.scrollBy(0, rect.bottom - window.innerHeight + 12);
+      else if (rect.top < 12) window.scrollBy(0, rect.top - 12);
+    }
   }
   function updateSelection() {
     const t = tile(selected);
@@ -327,75 +361,296 @@
     }
     move({ type: "play", tile: selected, train: id });
   }
+  const svgNS = "http://www.w3.org/2000/svg";
+  function svgElement(name, attrs = {}) {
+    const el = document.createElementNS(svgNS, name);
+    for (const [key, value] of Object.entries(attrs))
+      el.setAttribute(key, String(value));
+    return el;
+  }
+  function updateBoardView() {
+    if (!boardView.svg) return;
+    const board = $("board");
+    const aspect = board.clientWidth / Math.max(1, board.clientHeight);
+    if (boardView.bounds) {
+      const b = boardView.bounds;
+      boardView.fitX = (b.minX + b.maxX) / 2;
+      boardView.fitY = (b.minY + b.maxY) / 2;
+      boardView.radius = Math.max(
+        100,
+        (b.maxY - b.minY) / 2,
+        (b.maxX - b.minX) / (2 * aspect),
+      );
+      if (boardView.fitActive) {
+        boardView.x = boardView.fitX;
+        boardView.y = boardView.fitY;
+      }
+    }
+    const radius = boardView.radius / boardView.zoom;
+    boardView.svg.setAttribute(
+      "viewBox",
+      `${boardView.x - radius * aspect} ${boardView.y - radius} ${radius * aspect * 2} ${radius * 2}`,
+    );
+    $("zoomOut").disabled = boardView.zoom <= 1;
+    $("zoomIn").disabled = boardView.zoom >= 32;
+  }
+  function focusTrainEnd(train) {
+    const distance = Math.hypot(train.target.x, train.target.y);
+    const towardHub = Math.min(150, distance / 2);
+    const factor = distance ? (distance - towardHub) / distance : 0;
+    boardView.zoom = Math.max(1, Math.min(32, boardView.radius / 230));
+    boardView.x = train.target.x * factor;
+    boardView.y = train.target.y * factor;
+  }
+  function ensureLegalTargetsVisible() {
+    if (camera || !boardView.svg || !room?.game || !selected) return;
+    const keys = [
+      ...new Set(
+        room.game.legal
+          .filter((move) => move.tile === selected)
+          .map((move) => move.train),
+      ),
+    ];
+    const trains = (boardView.trains || []).filter((train) =>
+      keys.includes(train.key),
+    );
+    if (!trains.length) return;
+    const aspect =
+      $("board").clientWidth / Math.max(1, $("board").clientHeight);
+    const halfHeight = boardView.radius / boardView.zoom;
+    const halfWidth = halfHeight * aspect;
+    const outside = trains.some(
+      (train) =>
+        Math.abs(train.target.x - boardView.x) + 25 > halfWidth ||
+        Math.abs(train.target.y - boardView.y) + 25 > halfHeight,
+    );
+    if (!outside) return;
+    boardView.manual = true;
+    if (trains.length === 1) {
+      boardView.fitActive = false;
+      focusTrainEnd(trains[0]);
+    } else {
+      boardView.fitActive = true;
+      boardView.zoom = 1;
+    }
+    updateBoardView();
+  }
   function board(g) {
     document
       .querySelectorAll(".board > .route,.board > .seat,.board > .endpoint")
       .forEach((e) => e.remove());
+    document.querySelector(".board > .hub").hidden = true;
     const dynamic = $("dynamicBoard"),
       list = $("trainList");
     dynamic.replaceChildren();
     list.replaceChildren();
-    const ns = "http://www.w3.org/2000/svg",
-      tracks = document.createElementNS(ns, "svg");
-    tracks.setAttribute("viewBox", "0 0 100 100");
-    tracks.setAttribute("preserveAspectRatio", "none");
-    tracks.classList.add("board-tracks");
-    dynamic.append(tracks);
-    const engine = document.querySelectorAll(".engine span");
-    engine.forEach((e) => (e.textContent = g.engine));
-    const others = g.players.filter((p) => p.id !== room.me),
-      me = g.players.find((p) => p.id === room.me);
+    const me = g.players.find((p) => p.id === room.me);
+    const others = g.players.filter((p) => p.id !== room.me);
     const lanes = [
-      { key: `p:${me.id}`, name: "Your train", color: me.color, angle: 90 },
-      ...others.map((p, i) => ({
+      { key: `p:${me.id}`, name: "Your train", color: me.color, open: me.open },
+      ...others.map((p) => ({
         key: `p:${p.id}`,
         name: p.name,
         color: p.color,
-        angle: 90 + ((i + 1) * 360) / (others.length + 2),
         open: p.open,
       })),
-      {
-        key: "community",
-        name: "Community",
-        color: "#bc8b3b",
-        angle: 90 + ((others.length + 1) * 360) / (others.length + 2),
-      },
-    ];
-    for (const lane of lanes) {
-      const train = g.trains[lane.key];
-      if (!train) continue;
-      const rad = (lane.angle * Math.PI) / 180,
-        x = 50 + 34 * Math.cos(rad),
-        y = 50 + 31 * Math.sin(rad);
-      const line = document.createElementNS(ns, "line");
-      for (const [k, v] of Object.entries({ x1: 50, y1: 50, x2: x, y2: y }))
-        line.setAttribute(k, v);
-      tracks.append(line);
-      const seat = document.createElement("div");
-      seat.className = "dynamic-seat";
-      seat.style.left = `${x}%`;
-      seat.style.top = `${y}%`;
-      const dot = document.createElement("i");
-      dot.className = "color-dot";
-      dot.style.background = lane.color;
-      seat.append(
-        dot,
-        document.createTextNode(lane.name + (lane.open ? " · OPEN" : "")),
+      { key: "community", name: "Community", color: "#bc8b3b" },
+    ].map((lane) => ({ ...lane, tiles: g.trains[lane.key].tiles }));
+    const table = layoutTable(lanes);
+    boardView.trains = table.trains;
+    if (boardView.round !== g.round) {
+      boardView.zoom = 1;
+      boardView.x = 0;
+      boardView.y = 0;
+      boardView.manual = false;
+      boardView.round = g.round;
+    }
+    boardView.bounds = table.bounds;
+    const aspect =
+      $("board").clientWidth / Math.max(1, $("board").clientHeight);
+    boardView.fitX = (table.bounds.minX + table.bounds.maxX) / 2;
+    boardView.fitY = (table.bounds.minY + table.bounds.maxY) / 2;
+    boardView.radius = Math.max(
+      100,
+      (table.bounds.maxY - table.bounds.minY) / 2,
+      (table.bounds.maxX - table.bounds.minX) / (2 * aspect),
+    );
+    // Keep the active end readable as a long train grows. Players can always
+    // return to a complete overview with Fit table or focus any other train.
+    if (!boardView.manual) {
+      if (
+        g.phase === "playing" &&
+        g.turn === room.me &&
+        boardView.radius > 400
+      ) {
+        const target = table.trains.find(
+          (train) => train.key === (g.pending?.train || `p:${room.me}`),
+        );
+        boardView.fitActive = false;
+        focusTrainEnd(target);
+      } else {
+        boardView.zoom = 1;
+        boardView.fitActive = true;
+        boardView.x = boardView.fitX;
+        boardView.y = boardView.fitY;
+      }
+    }
+    const svg = svgElement("svg", {
+      role: "group",
+      "aria-label": "Domino trains. Drag the table to pan.",
+    });
+    svg.classList.add("rail-board");
+    boardView.svg = svg;
+    dynamic.append(svg);
+    const defs = svgElement("defs");
+    defs.innerHTML =
+      '<linearGradient id="hubWood" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#ead0a3"/><stop offset="1" stop-color="#b98956"/></linearGradient><linearGradient id="tileIvory" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#fffdf2"/><stop offset="1" stop-color="#eee1c9"/></linearGradient>';
+    svg.append(defs);
+    const rails = svgElement("g", { class: "rail-lines" });
+    svg.append(rails);
+    for (const train of table.trains)
+      rails.append(
+        svgElement("line", {
+          x1: 0,
+          y1: 0,
+          x2: train.target.x,
+          y2: train.target.y,
+        }),
       );
-      dynamic.append(seat);
+    const hub = svgElement("g", { class: "rail-hub" });
+    hub.append(
+      svgElement("circle", {
+        cx: 0,
+        cy: 0,
+        r: 66,
+        fill: "url(#hubWood)",
+        stroke: "#966944",
+        "stroke-width": 5,
+      }),
+    );
+    hub.append(
+      svgElement("circle", {
+        cx: 0,
+        cy: 0,
+        r: 56,
+        fill: "none",
+        stroke: "#a77d54",
+        "stroke-width": 1,
+        "stroke-dasharray": "3 3",
+      }),
+    );
+    hub.append(
+      svgElement("rect", {
+        x: -32,
+        y: -21,
+        width: 64,
+        height: 42,
+        rx: 5,
+        fill: "url(#tileIvory)",
+        stroke: "#c5b9a4",
+      }),
+    );
+    hub.append(
+      svgElement("line", { x1: 0, y1: -19, x2: 0, y2: 19, stroke: "#b5aa99" }),
+    );
+    for (const x of [-16, 16]) {
+      const num = svgElement("text", {
+        x,
+        y: 1,
+        "text-anchor": "middle",
+        "dominant-baseline": "central",
+        class: "rail-number",
+        fill: `var(--v${g.engine})`,
+      });
+      num.textContent = g.engine;
+      hub.append(num);
+    }
+    svg.append(hub);
+    for (const train of table.trains) {
+      for (const piece of train.dominoes) {
+        const group = svgElement("g", {
+          transform: `translate(${piece.center.x} ${piece.center.y}) rotate(${piece.angle})`,
+          class: "rail-domino",
+          "data-tile": piece.tile.id,
+        });
+        group.append(
+          svgElement("rect", {
+            x: -TILE_LENGTH / 2,
+            y: -TILE_WIDTH / 2,
+            width: TILE_LENGTH,
+            height: TILE_WIDTH,
+            rx: 4,
+            fill: "url(#tileIvory)",
+            stroke: "#785b40",
+            "stroke-width": 2.5,
+          }),
+        );
+        group.append(
+          svgElement("line", {
+            x1: 0,
+            y1: -TILE_WIDTH / 2 + 2,
+            x2: 0,
+            y2: TILE_WIDTH / 2 - 2,
+            stroke: "#ad9e87",
+          }),
+        );
+        for (const [value, x] of [
+          [piece.tile.a, -TILE_LENGTH / 4],
+          [piece.tile.b, TILE_LENGTH / 4],
+        ]) {
+          const num = svgElement("text", {
+            x,
+            y: 1,
+            "text-anchor": "middle",
+            "dominant-baseline": "central",
+            class: "rail-number",
+            fill: `var(--v${value})`,
+            transform: `rotate(${-piece.angle} ${x} 1)`,
+          });
+          num.textContent = value;
+          group.append(num);
+        }
+        svg.append(group);
+      }
+      const label = svgElement("text", {
+        x: train.label.x,
+        y: train.label.y,
+        class: "rail-label",
+        "text-anchor": "middle",
+        "dominant-baseline": "central",
+      });
+      label.textContent = train.name + (train.open ? " · OPEN" : "");
+      svg.append(label);
+      const marker = svgElement("circle", {
+        cx: train.label.x,
+        cy: train.label.y + 17,
+        r: 5,
+        fill: train.color,
+        stroke: "#fff6e5",
+        "stroke-width": 1,
+      });
+      svg.append(marker);
+      const holder = svgElement("foreignObject", {
+        x: train.target.x - 23,
+        y: train.target.y - 23,
+        width: 46,
+        height: 46,
+      });
       const end = document.createElement("button");
       end.type = "button";
-      end.className = "endpoint dynamic-endpoint";
-      end.dataset.train = lane.key;
-      end.style.left = `${50 + 24 * Math.cos(rad)}%`;
-      end.style.top = `${50 + 22 * Math.sin(rad)}%`;
-      end.setAttribute("aria-label", `${lane.name}, needs ${train.end}`);
-      end.addEventListener("click", () => play(lane.key));
-      dynamic.append(end);
+      end.className = "endpoint rail-endpoint";
+      end.dataset.train = train.key;
+      end.setAttribute(
+        "aria-label",
+        `${train.name}, needs ${g.trains[train.key].end}`,
+      );
+      end.addEventListener("click", () => play(train.key));
+      holder.append(end);
+      svg.append(holder);
       const row = document.createElement("div");
       row.className = "train-line";
       const title = document.createElement("b");
-      title.textContent = lane.name + (lane.open ? " · open" : "");
+      title.textContent = train.name + (train.open ? " · open" : "");
       const values = document.createElement("span");
       values.className = "train-values";
       if (!train.tiles.length) values.textContent = `Starts with ${g.engine}`;
@@ -405,24 +660,62 @@
         chip.innerHTML = `<span style="color:var(--v${t.a})">${t.a}</span><span style="color:var(--v${t.b})">${t.b}</span>`;
         values.append(chip);
       }
-      for (const [i, t] of train.tiles.slice(-3).entries()) {
-        const marker = document.createElement("div");
-        marker.className = "placed-tile";
-        const radius = 11 + i * 5;
-        marker.style.left = `${50 + radius * Math.cos(rad)}%`;
-        marker.style.top = `${50 + radius * 0.7 * Math.sin(rad)}%`;
-        marker.innerHTML = `<span style="color:var(--v${t.a})">${t.a}</span><span style="color:var(--v${t.b})">${t.b}</span>`;
-        dynamic.append(marker);
-      }
       const button = document.createElement("button");
       button.type = "button";
-      button.dataset.train = lane.key;
-      button.textContent = `Play here · needs ${train.end}`;
-      button.addEventListener("click", () => play(lane.key));
-      row.append(title, values, button);
+      button.dataset.train = train.key;
+      button.textContent = `Play here · needs ${g.trains[train.key].end}`;
+      button.addEventListener("click", () => play(train.key));
+      const focus = document.createElement("button");
+      focus.type = "button";
+      focus.className = "focus-train";
+      focus.textContent = "Focus";
+      focus.setAttribute("aria-label", `Focus ${train.name}`);
+      focus.addEventListener("click", () => {
+        boardView.manual = true;
+        boardView.fitActive = false;
+        focusTrainEnd(train);
+        updateBoardView();
+      });
+      row.append(title, values, focus, button);
       list.append(row);
     }
+    let pan = null;
+    svg.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || event.target.closest("[data-train]")) return;
+      pan = {
+        pointer: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        viewX: boardView.x,
+        viewY: boardView.y,
+      };
+      svg.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+    svg.addEventListener("pointermove", (event) => {
+      if (!pan || event.pointerId !== pan.pointer) return;
+      boardView.manual = true;
+      boardView.fitActive = false;
+      const rect = svg.getBoundingClientRect();
+      const aspect =
+        $("board").clientWidth / Math.max(1, $("board").clientHeight);
+      const height = (boardView.radius * 2) / boardView.zoom;
+      boardView.x =
+        pan.viewX -
+        ((event.clientX - pan.x) * height * aspect) / Math.max(1, rect.width);
+      boardView.y =
+        pan.viewY -
+        ((event.clientY - pan.y) * height) / Math.max(1, rect.height);
+      updateBoardView();
+    });
+    svg.addEventListener("pointerup", () => {
+      pan = null;
+    });
+    svg.addEventListener("pointercancel", () => {
+      pan = null;
+    });
     $("boardTiles").replaceChildren();
+    updateBoardView();
     updateSelection();
   }
   function whistle() {
@@ -500,7 +793,35 @@
     if (!r.game) return;
     const g = r.game,
       wasMyTurn = previous?.game?.turn === r.me;
+    const sameRound =
+      previous?.code === r.code && previous?.game?.round === g.round;
+    const oldIds = sameRound
+      ? new Set(previous.game.hand.map((t) => t.id))
+      : null;
+    const drawnTile = oldIds ? g.hand.find((t) => !oldIds.has(t.id)) : null;
+    if (!sameRound) {
+      latestDraw = null;
+      lastDrawNotice = "";
+    }
     loadHand(g);
+    if (latestDraw && !tile(latestDraw)) {
+      latestDraw = null;
+      lastDrawNotice = "";
+    }
+    if (drawnTile) {
+      latestDraw = drawnTile.id;
+      selected = drawnTile.id;
+      lastDrawNotice =
+        g.turn === r.me && g.drawn === drawnTile.id
+          ? `You drew ${drawnTile.a} | ${drawnTile.b}. Play the highlighted tile on a glowing train.`
+          : `You drew ${drawnTile.a} | ${drawnTile.b}. It could not be played, so your train is open and your turn ended.`;
+    } else if (g.drawn && tile(g.drawn)) {
+      latestDraw = g.drawn;
+      selected = g.drawn;
+    } else if (g.turn === r.me && !wasMyTurn) {
+      latestDraw = null;
+      lastDrawNotice = "";
+    }
     if (
       g.phase === "playing" &&
       (!previous?.game ||
@@ -550,6 +871,13 @@
     $("drawButton").disabled =
       !myTurn || g.legal.length > 0 || !!(g.openingPlayed && !g.pending);
     $("drawButton").textContent = g.boneyard ? "Draw" : "Pass";
+    $("drawButton").title = !myTurn
+      ? "Wait for your turn"
+      : g.legal.length
+        ? "Play a matching tile"
+        : g.openingPlayed && !g.pending
+          ? "End your opening turn"
+          : "";
     $("endOpening").hidden = !(myTurn && g.openingPlayed && !g.pending);
     $("nextRound").hidden = !(g.phase === "round-end" && r.host === r.me);
     $("rematch").hidden = !(g.phase === "finished" && r.host === r.me);
@@ -563,6 +891,28 @@
           : g.pending
             ? "Cover the exposed double before playing elsewhere."
             : `${g.boneyard} tiles in the boneyard.`;
+    const drawn = g.drawn && tile(g.drawn);
+    $("actionBanner").textContent =
+      g.phase !== "playing"
+        ? $("gameMessage").textContent
+        : myTurn && drawn
+          ? `You drew ${drawn.a} | ${drawn.b}. Play the highlighted tile on a glowing train.`
+          : myTurn && g.pending && !g.legal.length
+            ? g.boneyard
+              ? "You cannot cover the double. Draw one tile."
+              : "You cannot cover the double and the boneyard is empty. Pass."
+            : myTurn && g.pending
+              ? "Cover the exposed double with a matching tile."
+              : myTurn && g.openingPlayed
+                ? "Keep building your train, or choose End opening turn when you are done."
+                : myTurn && !g.legal.length
+                  ? g.boneyard
+                    ? "You have no playable tile. Draw one tile."
+                    : "You have no playable tile and the boneyard is empty. Pass."
+                  : myTurn
+                    ? "Your turn: select a tile and choose a glowing train."
+                    : lastDrawNotice ||
+                      `Waiting for ${turnPlayer?.name || "the next player"}.`;
     const results = $("roundResults");
     results.replaceChildren();
     if (g.phase !== "playing" && g.results.length) {
@@ -579,7 +929,33 @@
     }
     renderHand();
     board(g);
+    if (drawnTile || (!sameRound && g.drawn)) {
+      ensureLegalTargetsVisible();
+      revealHandTile(latestDraw);
+      if (drawnTile) tell(lastDrawNotice);
+    }
   }
+  // Keep the relevant actions next to the turn instructions on desktop and tablet.
+  $("actionBanner").after(document.querySelector(".game-controls"));
+  $("zoomIn").addEventListener("click", () => {
+    boardView.manual = true;
+    boardView.fitActive = false;
+    boardView.zoom = Math.min(32, boardView.zoom * 1.5);
+    updateBoardView();
+  });
+  $("zoomOut").addEventListener("click", () => {
+    boardView.manual = true;
+    boardView.fitActive = false;
+    boardView.zoom = Math.max(1, boardView.zoom / 1.5);
+    updateBoardView();
+  });
+  $("fitBoard").addEventListener("click", () => {
+    boardView.manual = true;
+    boardView.zoom = 1;
+    boardView.fitActive = true;
+    updateBoardView();
+  });
+  window.addEventListener("resize", updateBoardView);
   $("createRoom").addEventListener("click", () =>
     send(
       "create",

@@ -109,7 +109,19 @@
             <span id="tableHint">Your turn · choose a tile</span>
           </div>
         </div>
+        <div
+          id="actionBanner"
+          class="action-banner"
+          role="status"
+          aria-live="polite"
+        ></div>
         <div class="board-frame">
+          <div class="board-controls" aria-label="Table view controls">
+            <button id="zoomOut" type="button" aria-label="Zoom out">−</button
+            ><button id="zoomIn" type="button" aria-label="Zoom in">+</button
+            ><button id="fitBoard" type="button">Fit table</button
+            ><span>Drag table to pan</span>
+          </div>
           <div class="board-viewport" id="boardViewport">
             <div class="board" id="board" aria-label="Sample tabletop">
               <div class="board-ring ring-one"></div>
@@ -340,6 +352,6 @@
       MEXICAN TRAIN <span>·</span> PLAY WITH FRIENDS
     </div>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

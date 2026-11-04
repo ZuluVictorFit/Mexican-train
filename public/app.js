@@ -631,14 +631,6 @@ import {
             : `${train.name} is open`,
         "pointer-events": "none",
       });
-      marker.append(
-        svgElement("circle", {
-          r: 14,
-          fill: "var(--marker-background, #352a21)",
-          stroke: "var(--marker-border, #fff1cd)",
-          "stroke-width": 1.5,
-        }),
-      );
       marker.append(locomotiveModel(svgElement, train.color));
       svg.append(marker);
     }

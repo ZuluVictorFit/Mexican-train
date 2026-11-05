@@ -518,14 +518,20 @@ try {
   assert.equal(await p.locator(".train-gap").count(), 1);
   if (process.env.COMPACT_SCREENSHOT)
     await p.screenshot({ path: process.env.COMPACT_SCREENSHOT });
-  assert.match(
-    await p.locator("#roundResults").textContent(),
-    /Avery(?: \(you\))?17 points/,
+  assert.equal(
+    await p.locator('[data-player-id="seat0"] .player-score').textContent(),
+    "17points",
+  );
+  assert.equal(
+    await p.locator('[data-player-id="seat0"] .player-score strong').evaluate(
+      (el) => getComputedStyle(el).fontSize,
+    ),
+    await p.locator("#boneyardCount").evaluate((el) => getComputedStyle(el).fontSize),
   );
   assert.match(await p.locator("#roundResults").textContent(), /12–12: 17/);
-  assert.match(
-    await p.locator("#roundResults").textContent(),
-    /Morgan(?: \(you\))?24 points/,
+  assert.equal(
+    await p.locator('[data-player-id="seat1"] .player-score').textContent(),
+    "24points",
   );
   await p
     .getByRole("button", { name: "Expand Your train", exact: true })
@@ -726,9 +732,9 @@ try {
   await p.waitForSelector('.rail-domino[data-tile="2-12"]');
   assert.equal(await p.locator(".rail-domino").count(), 5);
   assert.equal(await p.locator(".train-gap").textContent(), "+9");
-  assert.match(
-    await p.locator("#roundResults").textContent(),
-    /Avery(?: \(you\))?17 points/,
+  assert.equal(
+    await p.locator('[data-player-id="seat0"] .player-score').textContent(),
+    "17points",
   );
   console.log(
     "All 13 dominoes render on the table; zoom, fit and focus passed.",

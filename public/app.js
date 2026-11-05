@@ -1146,15 +1146,19 @@ import {
           avatar = document.createElement("span"),
           text = document.createElement("span"),
           b = document.createElement("b"),
-          small = document.createElement("small");
+          small = document.createElement("small"),
+          score = document.createElement("div"),
+          scoreNumber = document.createElement("strong"),
+          scoreLabel = document.createElement("span");
         const active = g.phase === "playing" && p.id === g.turn;
         li.dataset.playerId = p.id;
         if (active) li.classList.add("player-on-turn");
         avatar.className = "player-avatar";
         avatar.style.background = p.color;
         avatar.textContent = p.name.slice(0, 1).toUpperCase();
+        text.className = "player-info";
         b.textContent = p.name + (p.id === r.me ? " (you)" : "");
-        small.textContent = `${p.score} points · ${p.count} tiles${p.open ? " · OPEN" : ""}`;
+        small.textContent = `${p.count} tiles${p.open ? " · OPEN" : ""}`;
         text.append(b, small);
         if (g.results.length) {
           const rounds = document.createElement("small");
@@ -1167,12 +1171,16 @@ import {
             .join(" · ");
           text.append(rounds);
         }
-        li.append(avatar, text);
         if (active) {
           const turn = document.createElement("em");
           turn.textContent = p.id === r.me ? "YOUR TURN" : "TURN";
-          li.append(turn);
+          text.append(turn);
         }
+        score.className = "player-score";
+        scoreNumber.textContent = p.score;
+        scoreLabel.textContent = "points";
+        score.append(scoreNumber, scoreLabel);
+        li.append(avatar, text, score);
         return li;
       }),
     );

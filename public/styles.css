@@ -758,7 +758,7 @@ kbd {
     serif;
   color: white;
 }
-.players li span:nth-child(2) {
+.players li > .player-info {
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -781,13 +781,15 @@ kbd {
   background: #286540;
   padding: 5px 7px;
   white-space: nowrap;
+  justify-self: start;
+  margin: 2px 0 0;
 }
 .players b {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 .players small {
-  font-size: 10px;
+  font-size: 11px;
   color: #647c69;
   letter-spacing: 0.5px;
 }
@@ -795,6 +797,19 @@ kbd {
   font-size: 9px;
   overflow-wrap: anywhere;
   line-height: 1.5;
+}
+.player-score {
+  display: grid;
+  justify-items: end;
+  flex-shrink: 0;
+  color: #284936;
+}
+.player-score strong {
+  font: 700 34px/1 Georgia, serif;
+}
+.player-score span {
+  font-size: 9px;
+  color: #647c69;
 }
 .boneyard-count {
   display: flex;

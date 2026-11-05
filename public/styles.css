@@ -867,6 +867,10 @@ kbd {
   display: flex;
   justify-content: space-between;
 }
+.close-game {
+  align-self: flex-start;
+  margin-bottom: 20px;
+}
 .sidebar-bottom span {
   color: #bc9859;
   font-size: 14px;

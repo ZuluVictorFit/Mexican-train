@@ -89,6 +89,11 @@ flat on screen while only the shared board changes camera angle.
 
 ## Proposed room flow
 
+During a game, the host can confirm “End game & return home” to close the room
+for everyone and discard its game and scores. Connected players return to the
+home screen; disconnected players return there on reconnect. Saved games to
+resume later are a future feature.
+
 Create room → display name and unique color → share code/link → guests choose
 name and color → host reviews a readable rule summary → host starts round →
 play and scores → host starts next round → final scores/rematch.

@@ -1200,6 +1200,40 @@ try {
   console.log(
     "Sound previews, individual volumes, automatic cues and silent reconnect passed.",
   );
+  const hostContext = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+  const guestContext = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+  await hostContext.addCookies([{ name: "mt_session", value: sessions[0], url }]);
+  await guestContext.addCookies([{ name: "mt_session", value: sessions[1], url }]);
+  const hostPage = await hostContext.newPage(), guestPage = await guestContext.newPage();
+  for (const page of [hostPage, guestPage]) {
+    await page.goto(url);
+    await page.evaluate(() => localStorage.setItem("mexican-train-room", "TEST25"));
+    await page.reload();
+    await page.waitForSelector("#gameArea:not([hidden])");
+  }
+  assert(await hostPage.locator("#closeGame").isVisible());
+  assert(await guestPage.locator("#closeGame").isHidden());
+  hostPage.once("dialog", (dialog) => dialog.dismiss());
+  await hostPage.locator("#closeGame").click();
+  assert(await hostPage.locator("#gameArea").isVisible());
+  assert(await guestPage.locator("#gameArea").isVisible());
+  hostPage.once("dialog", (dialog) => dialog.accept());
+  await hostPage.locator("#closeGame").click();
+  for (const page of [hostPage, guestPage]) {
+    await page.waitForSelector("#entry:not([hidden])");
+    assert.match(await page.locator("#entryError").textContent(), /host ended the game/i);
+    assert.equal(await page.evaluate(() => localStorage.getItem("mexican-train-room")), null);
+  }
+  await guestPage.evaluate(() => localStorage.setItem("mexican-train-room", "TEST25"));
+  await guestPage.reload();
+  await guestPage.waitForFunction(() => !localStorage.getItem("mexican-train-room"));
+  assert(await guestPage.locator("#entry").isVisible());
+  await hostPage.locator("#nameInput").fill("New host");
+  await hostPage.locator("#createRoom").click();
+  await hostPage.waitForSelector("#lobby:not([hidden])");
+  await hostContext.close();
+  await guestContext.close();
+  console.log("The host can end a game for everyone and create a new table.");
 } finally {
   await browser?.close();
   if (server.exitCode === null) {

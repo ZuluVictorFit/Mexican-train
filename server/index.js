@@ -286,6 +286,23 @@ io.on("connection", (socket) => {
       return {};
     }, cb),
   );
+  socket.on("close-game", (data, cb) =>
+    respond(() => {
+      const room = requireRoom(id, data?.code);
+      if (room.host !== room.seats.find((s) => s.session === id).id)
+        throw Error("Only the host can end the game for everyone.");
+      if (!room.game) throw Error("The game has not started.");
+      db.prepare("DELETE FROM rooms WHERE code=?").run(room.code);
+      rooms.delete(room.code);
+      for (const seat of room.seats)
+        for (const client of sockets.get(seat.session) || [])
+          if (client.data.room === room.code) {
+            client.data.room = null;
+            client.emit("game-closed", { code: room.code });
+          }
+      return {};
+    }, cb),
+  );
   socket.on("leave", (data, cb) =>
     respond(() => {
       const room = requireRoom(id, data?.code);

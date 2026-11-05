@@ -180,6 +180,54 @@ test("lobby color changes and host leaving keep the table manageable", async () 
   }
 });
 
+test("only the host can close a game for everyone, including disconnected players", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "mexican-close-"));
+  const port = 31000 + Math.floor(Math.random() * 15000),
+    url = `http://127.0.0.1:${port}`,
+    path = join(dir, "rooms.sqlite");
+  let server;
+  const clients = [];
+  try {
+    server = await boot(port, path);
+    const host = await connect(url),
+      guest = await connect(url),
+      offline = await connect(url);
+    clients.push(host, guest, offline);
+    const { code } = await send(host, "create", { name: "Host", color: "#112233" });
+    assert((await send(guest, "join", { code, name: "Guest", color: "#334455" })).ok);
+    assert((await send(offline, "join", { code, name: "Offline", color: "#556677" })).ok);
+    assert((await send(host, "start", { code, engine: 12 })).ok);
+    await until(() => guest.state?.game && offline.state?.game);
+    const secondHostTab = await connect(url, host.cookie);
+    clients.push(secondHostTab);
+    assert((await send(secondHostTab, "resume", { code })).ok);
+    assert.equal((await send(guest, "close-game", { code })).ok, false);
+    assert((await send(guest, "resume", { code })).ok);
+    offline.s.disconnect();
+    const notices = [host, guest, secondHostTab].map((c) => once(c.s, "game-closed"));
+    assert((await send(host, "close-game", { code })).ok);
+    for (const notice of await Promise.all(notices)) assert.equal(notice[0].code, code);
+    assert.equal((await send(guest, "resume", { code })).ok, false);
+    const reconnected = await connect(url, offline.cookie);
+    clients.push(reconnected);
+    assert.equal((await send(reconnected, "resume", { code })).ok, false);
+    assert((await send(host, "create", { name: "Host", color: "#112233" })).ok);
+    server.kill("SIGTERM");
+    await once(server, "exit");
+    server = await boot(port, path);
+    const afterRestart = await connect(url, guest.cookie);
+    clients.push(afterRestart);
+    assert.equal((await send(afterRestart, "resume", { code })).ok, false);
+  } finally {
+    for (const c of clients) c.s.disconnect();
+    if (server && !server.killed) {
+      server.kill("SIGTERM");
+      await once(server, "exit");
+    }
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("a no-draw double lap resumes correctly after a server restart", async () => {
   const dir = await mkdtemp(join(tmpdir(), "mexican-double-lap-"));
   const port = 31000 + Math.floor(Math.random() * 15000),

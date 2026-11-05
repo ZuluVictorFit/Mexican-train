@@ -995,6 +995,7 @@ import {
     $("lobby").hidden = !!r.game;
     $("gameArea").hidden = !r.game;
     $("hostControls").hidden = r.host !== r.me;
+    $("closeGame").hidden = r.host !== r.me;
     $("lobbyStatus").textContent =
       r.host === r.me
         ? "You are the host. At least two players are needed."
@@ -1406,6 +1407,15 @@ import {
   );
   for (const id of ["leaveLobby", "leaveGame"])
     $(id).addEventListener("click", () => send("leave", { code: room.code }));
+  $("closeGame").addEventListener("click", () => {
+    if (
+      room &&
+      window.confirm(
+        "End this game for everyone and return to the home screen? The game and scores cannot be recovered.",
+      )
+    )
+      send("close-game", { code: room.code });
+  });
   $("expandButton").addEventListener("click", () => setFullscreen(!fullscreen));
   $("flipButton").addEventListener("click", flip);
   $("rotateButton").addEventListener("click", rotate);
@@ -1529,19 +1539,38 @@ import {
       if (!r.ok) throw Error("Session unavailable");
       socket = io();
       socket.on("state", render);
-      socket.on("left", () => {
+      function returnHome(message = "") {
         room = null;
+        clearTimeout(turnHintTimer);
+        turnHintTimer = null;
+        if (fullscreen) setFullscreen(false);
         localStorage.removeItem("mexican-train-room");
         $("entry").hidden = false;
         $("lobby").hidden = true;
         $("gameArea").hidden = true;
+        $("entryError").textContent = message;
+      }
+      socket.on("left", () => returnHome());
+      socket.on("game-closed", ({ code }) => {
+        if (
+          room?.code === code ||
+          localStorage.getItem("mexican-train-room") === code
+        )
+          returnHome("The host ended the game. Create or join a new table.");
       });
       socket.on("connect", () => {
         ignoreNextSoundState = true;
         const code = localStorage.getItem("mexican-train-room");
         if (code)
           socket.emit("resume", { code }, (r) => {
-            if (!r?.ok) localStorage.removeItem("mexican-train-room");
+            if (
+              r &&
+              !r.ok &&
+              localStorage.getItem("mexican-train-room") === code
+            )
+              returnHome(
+                "This game is no longer available. Create or join a new table.",
+              );
           });
       });
       socket.on("disconnect", () => {

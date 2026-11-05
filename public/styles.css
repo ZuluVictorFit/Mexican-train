@@ -1428,7 +1428,7 @@ kbd {
   letter-spacing: 0.5px;
 }
 @media (max-width: 1100px) {
-  .board-controls span {
+  .board-controls > span {
     display: none;
   }
 }

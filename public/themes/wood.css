@@ -1,0 +1,220 @@
+/* The wood theme changes materials and color, never rules or table geometry. */
+:root {
+  --theme-room: #e8dcc8;
+  --theme-paper: #f5ecdd;
+  --theme-wood-dark: #38251b;
+  --theme-wood-mid: #674630;
+  --theme-brass: #b99a6d;
+  --theme-table-image: url("wood/table.webp");
+}
+
+body {
+  background: radial-gradient(ellipse at 50% 10%, #f4ecdf, var(--theme-room));
+}
+.topbar {
+  background: linear-gradient(100deg, #302017, #4b3021 50%, #302017);
+  border-bottom: 2px solid #a87e4e;
+}
+.brand-mark {
+  color: #ead2a1;
+  border-color: #b89461;
+}
+.quiet-button {
+  border-color: #a78c6e;
+  color: #fff3de;
+}
+.entry-screen {
+  background: radial-gradient(ellipse at center, #e9d6ba, #b9946d);
+}
+.entry-card,
+.hand-card {
+  background: var(--theme-paper);
+  border-color: #cdb998;
+  box-shadow: 0 5px 18px #4b2b1829;
+}
+.sidebar {
+  background: #f1e7d6;
+  border-color: #cbb795;
+  box-shadow: 0 5px 18px #4b2b1829;
+}
+.sidebar .side-section {
+  border-color: #d7c6ab;
+}
+.section-heading {
+  color: #735335;
+}
+.action-banner {
+  background: #eee3d0;
+  border-color: #d4bea0;
+  color: #4b3729;
+}
+.board-frame {
+  border: 4px solid var(--theme-wood-mid);
+  background: var(--theme-wood-mid);
+  box-shadow: 0 8px 22px #3321174d;
+}
+.board-controls {
+  background: var(--theme-wood-dark);
+  color: #f8ecd7;
+}
+.board-controls button {
+  background: #f6ead3;
+  border-color: #aa8b63;
+  color: #503727;
+}
+.board-controls > span {
+  color: #e9d9bf;
+}
+.board-viewport {
+  background: #945f38 var(--theme-table-image) center top / cover no-repeat;
+}
+#board::before {
+  border-radius: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 45%,
+    #45291824 100%
+  );
+  box-shadow: inset 0 0 45px #3b210f38;
+}
+.board-ring {
+  display: none;
+}
+.train-list {
+  background: #eee3d1;
+  border-top: 1px solid #a98862;
+}
+.train-line {
+  color: #4c3729;
+}
+.train-line button {
+  background: #f9f0e1;
+  border-color: #c7b08e;
+  color: #513a27;
+}
+.board-caption {
+  background: #4a3021;
+  color: #ead8bc;
+}
+.hand-viewport {
+  border-color: #91623d;
+}
+.small-button {
+  background: #faf0df;
+  border-color: #c9b394;
+  color: #513b2c;
+}
+.hand-turn-controls .small-button:not(:disabled),
+.game-controls .small-button:not(:disabled) {
+  background: #61412c;
+  border-color: #61412c;
+  color: #fff8e9;
+}
+.train-gap {
+  background: #fff1d5;
+  border-color: #a77e4a;
+  color: #4d3424;
+}
+
+/* Seat labels occupy toolbar/hand-header space, never board hit targets. */
+.table-seats {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #bd986b #38251b;
+}
+.seat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 190px;
+  flex: 0 0 auto;
+  padding: 2px 7px 2px 3px;
+  border: 1px solid #a08767;
+  border-radius: 7px;
+  background: #3b2a20;
+  color: #fff5e6;
+  font:
+    600 11px system-ui,
+    sans-serif;
+}
+.seat-badge .seat-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seat-badge small {
+  font-size: 9px;
+  color: #f5d294;
+}
+.seat-badge.seat-active {
+  border-color: #f0c36d;
+  box-shadow: inset 0 0 0 1px #e2b457;
+}
+.seat-badge.seat-away {
+  opacity: 0.7;
+}
+.seat-train {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  overflow: visible;
+}
+.local-seat {
+  margin-top: 3px;
+}
+.local-seat .seat-badge {
+  background: #eee0c9;
+  color: #493728;
+  border-color: #c6aa82;
+}
+.local-seat .seat-badge {
+  max-width: 220px;
+}
+.local-seat .seat-badge small {
+  color: #76541d;
+}
+.rail-domino.just-played {
+  animation: tile-arrival 350ms ease-out both;
+}
+@keyframes tile-arrival {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-domino.just-played {
+    animation: none;
+  }
+}
+@media (max-width: 1100px) {
+  .board-controls .seat-badge .seat-name {
+    display: inline;
+  }
+  .table-seats .seat-badge {
+    max-width: 150px;
+  }
+  .table-seats {
+    gap: 3px;
+  }
+  .table-seats .seat-badge {
+    padding: 1px 4px 1px 2px;
+    font-size: 10px;
+  }
+  .table-seats .seat-train {
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
+  }
+  .table-seats .seat-badge small {
+    font-size: 8px;
+  }
+}

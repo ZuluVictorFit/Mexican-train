@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Mexican Train</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="themes/wood.css" />
   </head>
   <body>
     <section id="entry" class="entry-screen" aria-label="Create or join a game">
       <div class="entry-card">
-        <span class="eyebrow">A LITTLE FRIENDLY GAME</span>
         <h1>Come play Mexican Train<span class="period">.</span></h1>
         <p>
           Create a table and invite friends, or join with their six-character
@@ -107,6 +107,12 @@
         ></div>
         <div class="board-frame">
           <div class="board-controls" aria-label="Table view controls">
+            <div
+              id="tableSeats"
+              class="table-seats"
+              tabindex="0"
+              aria-label="Players around the table; scroll to see more"
+            ></div>
             <button id="zoomOut" type="button" aria-label="Zoom out">−</button
             ><button id="zoomIn" type="button" aria-label="Zoom in">+</button
             ><button id="fitBoard" type="button">Fit table</button
@@ -224,6 +230,7 @@
           <div class="hand-header">
             <div>
               <h2>Your hand <span id="handCount">15 tiles</span></h2>
+              <div id="localSeat" class="local-seat"></div>
             </div>
             <div class="hand-turn-controls">
               <button id="drawButton" class="small-button" type="button">

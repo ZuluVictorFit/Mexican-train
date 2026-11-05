@@ -232,6 +232,12 @@ try {
     );
     await p.reload();
     await p.waitForSelector("#gameArea:not([hidden])");
+    assert.equal(await p.locator("#tableSeats .seat-badge").count(), 1);
+    assert.match(
+      await p.locator("#localSeat .seat-badge").getAttribute("aria-label"),
+      /Avery, you, current turn/,
+    );
+    assert.equal(await p.locator(".rail-domino.just-played").count(), 0);
     assert.equal(await p.locator('[data-train-marker="community"]').count(), 1);
     assert.equal(await p.locator('[data-quick-train="community"]').count(), 1);
     assert(
@@ -320,6 +326,17 @@ try {
       );
       await p.mouse.up();
       await p.waitForSelector('.rail-domino[data-tile="1-12"]');
+      assert.equal(
+        await p.locator('.rail-domino.just-played[data-tile="1-12"]').count(),
+        1,
+      );
+      await p.emulateMedia({ reducedMotion: "reduce" });
+      assert.equal(
+        await p
+          .locator(".rail-domino.just-played")
+          .evaluate((el) => getComputedStyle(el).animationName),
+        "none",
+      );
       await p.waitForSelector("#endOpening:not([hidden])");
       assert.match(
         await p.locator("#actionBanner").textContent(),
@@ -333,6 +350,10 @@ try {
       await p.click("#endOpening");
       await p.waitForFunction(() =>
         document.querySelector("#turnLabel").textContent.includes("Morgan"),
+      );
+      assert.match(
+        await p.locator("#tableSeats .seat-active").getAttribute("aria-label"),
+        /Morgan, current turn/,
       );
       assert.equal(await p.locator('[data-train-marker="p:seat0"]').count(), 1);
       assert.equal(await p.locator('[data-quick-train="p:seat0"]').count(), 1);
@@ -635,6 +656,29 @@ try {
     );
     await page.reload();
     await page.waitForSelector("#gameArea:not([hidden])");
+    assert.equal(await page.locator("#tableSeats .seat-badge").count(), 5);
+    assert.equal(await page.locator("#localSeat .seat-badge").count(), 1);
+    for (const name of await page.locator(".seat-badge .seat-name").all())
+      assert(
+        await name.evaluate((el) => el.scrollWidth <= el.clientWidth),
+        "short seat names stay readable",
+      );
+    if (dimensions.width === 1024) {
+      const rail = await page.locator("#tableSeats").boundingBox();
+      const lastSeat = await page
+        .locator("#tableSeats .seat-badge")
+        .last()
+        .boundingBox();
+      assert(
+        lastSeat.x + lastSeat.width <= rail.x + rail.width + 1,
+        "six-player seats should fit at tablet width",
+      );
+    }
+    if (process.env.SIX_SEAT_SCREENSHOT && dimensions.width === 1024)
+      await page.screenshot({
+        path: process.env.SIX_SEAT_SCREENSHOT,
+        fullPage: true,
+      });
     assert.equal(await page.locator(".domino").count(), 12);
     const tray = await page.locator("#handViewport").boundingBox();
     for (const domino of await page.locator(".domino").all()) {

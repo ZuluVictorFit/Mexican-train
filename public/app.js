@@ -494,7 +494,7 @@ import {
     boardView.x = train.target.x * factor;
     boardView.y = train.target.y * factor;
   }
-  function board(g) {
+  function board(g, arrivingTile = null) {
     document
       .querySelectorAll(".board > .route,.board > .seat,.board > .endpoint")
       .forEach((e) => e.remove());
@@ -688,7 +688,7 @@ import {
           piece.tile.a === piece.tile.b;
         const group = svgElement("g", {
           transform: `translate(${piece.center.x} ${piece.center.y}) rotate(${piece.angle})`,
-          class: pendingDouble ? "rail-domino double-pending" : "rail-domino",
+          class: `rail-domino${pendingDouble ? " double-pending" : ""}${piece.tile.id === arrivingTile ? " just-played" : ""}`,
           "data-tile": piece.tile.id,
         });
         group.append(
@@ -956,6 +956,20 @@ import {
   }
   function render(r) {
     const previous = room;
+    let arrivingTile = null;
+    if (
+      !ignoreNextSoundState &&
+      previous?.code === r.code &&
+      previous.game?.phase === "playing" &&
+      previous.game.round === r.game?.round &&
+      r.revision === previous.revision + 1
+    ) {
+      for (const [key, train] of Object.entries(r.game.trains)) {
+        const before = previous.game.trains[key]?.tiles || [];
+        if (train.tiles.length === before.length + 1)
+          arrivingTile = train.tiles.at(-1).id;
+      }
+    }
     room = r;
     if (!ignoreNextSoundState) {
       const events = soundEvents(previous, r);
@@ -1012,6 +1026,43 @@ import {
     if (!r.game) return;
     const g = r.game,
       wasMyTurn = previous?.game?.turn === r.me;
+    function seatBadge(player, local = false) {
+      const badge = document.createElement("div");
+      const connected =
+        r.players.find((p) => p.id === player.id)?.connected !== false;
+      const active = g.phase === "playing" && g.turn === player.id;
+      badge.className = `seat-badge${active ? " seat-active" : ""}${connected ? "" : " seat-away"}`;
+      badge.setAttribute(
+        "aria-label",
+        `${player.name}${local ? ", you" : ""}${active ? ", current turn" : ""}${connected ? "" : ", disconnected"}`,
+      );
+      badge.title = badge.getAttribute("aria-label");
+      const icon = svgElement("svg", {
+        viewBox: "-16 -16 32 32",
+        class: "seat-train",
+        "aria-hidden": "true",
+      });
+      icon.append(locomotiveModel(svgElement, player.color));
+      const name = document.createElement("span");
+      name.className = "seat-name";
+      name.textContent = player.name + (local ? " (you)" : "");
+      badge.append(icon, name);
+      if (active || !connected) {
+        const status = document.createElement("small");
+        status.textContent = !connected ? "Away" : "Turn";
+        badge.append(status);
+      }
+      return badge;
+    }
+    $("tableSeats").replaceChildren(
+      ...g.players.filter((p) => p.id !== r.me).map((p) => seatBadge(p)),
+    );
+    $("localSeat").replaceChildren(
+      seatBadge(
+        g.players.find((p) => p.id === r.me),
+        true,
+      ),
+    );
     if (previous?.code === r.code && previous.game === null && g.round === 1) {
       expandedTrains.clear();
       expandedRound = "";
@@ -1184,7 +1235,7 @@ import {
       results.append(line);
     }
     renderHand();
-    board(g);
+    board(g, arrivingTile);
     if (drawnTile || (!sameRound && g.drawn)) {
       revealHandTile(latestDraw);
       if (drawnTile) tell(lastDrawNotice);

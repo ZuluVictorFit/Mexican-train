@@ -11,8 +11,7 @@ Planning date: November 3, 2026 (user timezone). Status: pre-build.
 | Table size              | Up to six players. Proposed minimum: two.                                                                                                                                                                                                                                                                                                                                  |
 | Private hand            | Bounded tray with continuous free placement, small overlaps, no grid. A fresh deal fits visibly in the compact hand with extra room to rearrange.                                                                                                                                                                                                                          |
 | Hand orientation | Click selects; click the selected tile again to swap ends. R rotates it 90 degrees. |
-| Idle board              | Perspective suggesting sitting at an actual table.                                                                                                                                                                                                                                                                                                                         |
-| Active board            | Animate into a clearer playing view on the player's turn; animation details pending.                                                                                                                                                                                                                                                                                       |
+| Board perspective       | Keep the seated table perspective throughout play, including the active player's turn.                                                                                                                                                                                                                                                                                      |
 | Train layout            | Lengthwise dominoes alternate between two side-by-side tracks as they move outward, with matching halves adjacent, following the user drawing. Keep the quick-view train list.                                                                                                                                                                                             |
 | Table navigation        | Keep the zoom buttons and support mouse-wheel zoom; retain dragging to pan.                                                                                                                                                                                                                                                                                                |
 | Domino faces            | Actual numbers rather than dots, with consistent colors per number.                                                                                                                                                                                                                                                                                                        |
@@ -83,9 +82,8 @@ ship only the wooden theme initially. No public matchmaking, accounts, bots, spe
 chat, money, or social integrations in the first build.
 
 Use a warm wooden table inspired by the supplied physical hub photo, with original
-artwork. The overall style of the first rendering is approved; its precise layout
-and camera angles remain proposals. Keep the hand
-flat on screen while only the shared board changes camera angle.
+artwork. The overall style of the first rendering is approved. Keep the hand
+flat on screen and the shared board in table perspective throughout play.
 
 ## Proposed room flow
 
@@ -104,7 +102,7 @@ in a future feature; do not inject a new hand into an active round.
 
 ## Details still to settle
 
-- Precise idle/active camera views and the interaction storyboard.
+- Further visual refinements to the table perspective.
 - Remaining double edge cases, community-train timing, and marker behavior
   ([rules matrix](rules.md)).
 - Preferred active placement: drag to endpoint, click/tap tile then endpoint, or

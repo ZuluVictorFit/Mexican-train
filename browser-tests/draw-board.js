@@ -307,8 +307,8 @@ try {
     assert.equal(await p.locator(".hand-header #drawButton").count(), 1);
     assert.equal(await p.locator(".hand-header #endOpening").count(), 1);
     assert.equal(await p.locator("#boneyardCount").textContent(), "2");
-    assert.equal(await p.locator(".board-controls #cameraButton").count(), 1);
-    assert.equal(await p.locator(".topbar #cameraButton").count(), 0);
+    assert.equal(await p.locator("#cameraButton").count(), 0);
+    assert.equal(await p.locator("#board.perspective").count(), 1);
     assert.match(
       await p.locator(".sidebar-bottom").textContent(),
       /you guys are a bunch of nerds/,
@@ -440,6 +440,7 @@ try {
         await p.locator("#turnBanner").textContent(),
         "Morgan's turn",
       );
+      assert.equal(await p.locator("#board.perspective").count(), 1);
       assert.equal(
         await p
           .locator('.players .player-on-turn[data-player-id="seat1"]')

@@ -29,7 +29,6 @@ import {
     selected = null,
     fullscreen = false,
     scale = 1,
-    camera = false,
     drag = null,
     timer,
     turnHintTimer,
@@ -298,7 +297,7 @@ import {
       el.classList.toggle("selected", on);
       el.setAttribute("aria-pressed", String(on));
     }
-    $("playButton").disabled = !t || camera || room?.game?.turn !== room?.me;
+    $("playButton").disabled = !t || room?.game?.turn !== room?.me;
     $("flipButton").disabled = !t;
     $("rotateButton").disabled = !t;
     $("boardCaption").textContent = t
@@ -446,10 +445,6 @@ import {
     });
   }
   function play(id) {
-    if (camera) {
-      tell("Switch to playing view to play a tile.");
-      return;
-    }
     if (!legal(tile(selected), id)) {
       tell("That tile cannot be played on this train.");
       return;
@@ -1107,19 +1102,6 @@ import {
       latestDraw = null;
       lastDrawNotice = "";
     }
-    if (
-      g.phase === "playing" &&
-      (!previous?.game ||
-        previous.game.phase !== "playing" ||
-        wasMyTurn !== (g.turn === r.me))
-    ) {
-      camera = g.turn !== r.me;
-      $("board").classList.toggle("perspective", camera);
-      $("cameraButton").textContent = camera
-        ? "Playing view"
-        : "Table perspective";
-      $("cameraButton").setAttribute("aria-pressed", String(camera));
-    }
     $("roundLabel").textContent = `Round ${g.round} · ${g.engine}`;
     const turnPlayer = g.players.find((p) => p.id === g.turn);
     const turnBanner = $("turnBanner");
@@ -1423,15 +1405,6 @@ import {
   $("playButton").addEventListener("click", () => {
     if (fullscreen) setFullscreen(false);
     tell("Choose a train.");
-  });
-  $("cameraButton").addEventListener("click", () => {
-    camera = !camera;
-    $("board").classList.toggle("perspective", camera);
-    $("cameraButton").textContent = camera
-      ? "Playing view"
-      : "Table perspective";
-    $("cameraButton").setAttribute("aria-pressed", String(camera));
-    updateSelection();
   });
   document.addEventListener("keydown", (e) => {
     if (e.target.matches("input,textarea,select")) return;

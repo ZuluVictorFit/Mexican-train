@@ -109,12 +109,14 @@
             <button id="zoomOut" type="button" aria-label="Zoom out">−</button
             ><button id="zoomIn" type="button" aria-label="Zoom in">+</button
             ><button id="fitBoard" type="button">Fit table</button
-            ><button id="cameraButton" type="button" aria-pressed="false">
-              Table perspective</button
             ><span>Drag table to pan</span>
           </div>
           <div class="board-viewport" id="boardViewport">
-            <div class="board" id="board" aria-label="Sample tabletop">
+            <div
+              class="board perspective"
+              id="board"
+              aria-label="Sample tabletop"
+            >
               <div class="board-ring ring-one"></div>
               <div class="board-ring ring-two"></div>
               <div class="route route-you"></div>

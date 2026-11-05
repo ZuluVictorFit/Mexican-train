@@ -49,6 +49,9 @@ endpoints and actions are enabled in the actual game.
 
 ## Board and camera
 
+The current game keeps the table perspective throughout play. The earlier camera
+transition and manual view toggle described below are superseded for now.
+
 - Place the local player's personal train nearest them. Other seats stay stable
   within that player's view; each client may have its own viewing orientation.
 - Start with a seated oblique view (proposed 35–45 degrees from overhead). Animate

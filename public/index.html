@@ -100,6 +100,13 @@
     <main class="app-layout" id="gameArea" hidden>
       <section class="game-column" aria-label="Game table and your hand">
         <div
+          id="turnBanner"
+          class="turn-banner"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></div>
+        <div
           id="actionBanner"
           class="action-banner"
           role="status"
@@ -107,12 +114,6 @@
         ></div>
         <div class="board-frame">
           <div class="board-controls" aria-label="Table view controls">
-            <div
-              id="tableSeats"
-              class="table-seats"
-              tabindex="0"
-              aria-label="Players around the table; scroll to see more"
-            ></div>
             <button id="zoomOut" type="button" aria-label="Zoom out">−</button
             ><button id="zoomIn" type="button" aria-label="Zoom in">+</button
             ><button id="fitBoard" type="button">Fit table</button

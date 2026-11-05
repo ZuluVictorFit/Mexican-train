@@ -1054,9 +1054,6 @@ import {
       }
       return badge;
     }
-    $("tableSeats").replaceChildren(
-      ...g.players.filter((p) => p.id !== r.me).map((p) => seatBadge(p)),
-    );
     $("localSeat").replaceChildren(
       seatBadge(
         g.players.find((p) => p.id === r.me),
@@ -1119,6 +1116,16 @@ import {
     }
     $("roundLabel").textContent = `Round ${g.round} · ${g.engine}`;
     const turnPlayer = g.players.find((p) => p.id === g.turn);
+    const turnBanner = $("turnBanner");
+    turnBanner.hidden = g.phase !== "playing";
+    turnBanner.classList.toggle(
+      "your-turn",
+      g.phase === "playing" && g.turn === r.me,
+    );
+    const turnMessage =
+      g.turn === r.me ? "YOUR TURN" : `${turnPlayer?.name || "Player"}'s turn`;
+    if (turnBanner.textContent !== turnMessage)
+      turnBanner.textContent = turnMessage;
     $("turnLabel").textContent =
       g.phase === "playing"
         ? g.turn === r.me
@@ -1135,6 +1142,9 @@ import {
           text = document.createElement("span"),
           b = document.createElement("b"),
           small = document.createElement("small");
+        const active = g.phase === "playing" && p.id === g.turn;
+        li.dataset.playerId = p.id;
+        if (active) li.classList.add("player-on-turn");
         avatar.className = "player-avatar";
         avatar.style.background = p.color;
         avatar.textContent = p.name.slice(0, 1).toUpperCase();
@@ -1142,6 +1152,11 @@ import {
         small.textContent = `${p.score} points · ${p.count} tiles${p.open ? " · OPEN" : ""}`;
         text.append(b, small);
         li.append(avatar, text);
+        if (active) {
+          const turn = document.createElement("em");
+          turn.textContent = p.id === r.me ? "YOUR TURN" : "TURN";
+          li.append(turn);
+        }
         return li;
       }),
     );

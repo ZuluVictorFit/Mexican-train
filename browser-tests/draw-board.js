@@ -232,7 +232,17 @@ try {
     );
     await p.reload();
     await p.waitForSelector("#gameArea:not([hidden])");
-    assert.equal(await p.locator("#tableSeats .seat-badge").count(), 1);
+    assert.equal(await p.locator("#tableSeats").count(), 0);
+    assert.equal(
+      await p.locator("#turnBanner.your-turn").textContent(),
+      "YOUR TURN",
+    );
+    assert.equal(
+      await p
+        .locator('.players .player-on-turn[data-player-id="seat0"]')
+        .count(),
+      1,
+    );
     assert.match(
       await p.locator("#localSeat .seat-badge").getAttribute("aria-label"),
       /Avery, you, current turn/,
@@ -249,6 +259,22 @@ try {
     assert.equal(await p.locator(".double-pending").count(), 0);
     assert.equal(await p.locator(".hand-header #drawButton").count(), 1);
     assert.equal(await p.locator(".hand-header #endOpening").count(), 1);
+    const drawBox = await p.locator("#drawButton").boundingBox();
+    assert(
+      drawBox.width >= 112 && drawBox.height >= 46,
+      "turn controls should be comfortably large",
+    );
+    const green = async (selector) => {
+      const color = await p
+        .locator(selector)
+        .evaluate((el) => getComputedStyle(el).backgroundColor);
+      const [red, green, blue] = color.match(/\d+/g).map(Number);
+      assert(
+        green > red && green > blue,
+        `${selector} should stay green: ${color}`,
+      );
+    };
+    await green("#drawButton");
     assert.equal(
       await p.locator('[data-train-marker="community"] > circle').count(),
       0,
@@ -295,6 +321,10 @@ try {
     assert.match(await p.locator("#actionBanner").textContent(), /Your turn/);
     await p.click("#drawButton");
     await p.waitForSelector(".domino.drawn");
+    await green("#drawButton");
+    await green("#endOpening");
+    const endBox = await p.locator("#endOpening").boundingBox();
+    assert(endBox.width >= 112 && endBox.height >= 46);
     const drawn = p.locator(".domino.drawn");
     assert.equal(await drawn.getAttribute("data-id"), match ? "1-12" : "4-5");
     const bb = await drawn.boundingBox(),
@@ -351,9 +381,15 @@ try {
       await p.waitForFunction(() =>
         document.querySelector("#turnLabel").textContent.includes("Morgan"),
       );
-      assert.match(
-        await p.locator("#tableSeats .seat-active").getAttribute("aria-label"),
-        /Morgan, current turn/,
+      assert.equal(
+        await p.locator("#turnBanner").textContent(),
+        "Morgan's turn",
+      );
+      assert.equal(
+        await p
+          .locator('.players .player-on-turn[data-player-id="seat1"]')
+          .count(),
+        1,
       );
       assert.equal(await p.locator('[data-train-marker="p:seat0"]').count(), 1);
       assert.equal(await p.locator('[data-quick-train="p:seat0"]').count(), 1);
@@ -656,24 +692,14 @@ try {
     );
     await page.reload();
     await page.waitForSelector("#gameArea:not([hidden])");
-    assert.equal(await page.locator("#tableSeats .seat-badge").count(), 5);
+    assert.equal(await page.locator("#tableSeats").count(), 0);
     assert.equal(await page.locator("#localSeat .seat-badge").count(), 1);
     for (const name of await page.locator(".seat-badge .seat-name").all())
       assert(
         await name.evaluate((el) => el.scrollWidth <= el.clientWidth),
         "short seat names stay readable",
       );
-    if (dimensions.width === 1024) {
-      const rail = await page.locator("#tableSeats").boundingBox();
-      const lastSeat = await page
-        .locator("#tableSeats .seat-badge")
-        .last()
-        .boundingBox();
-      assert(
-        lastSeat.x + lastSeat.width <= rail.x + rail.width + 1,
-        "six-player seats should fit at tablet width",
-      );
-    }
+    assert.equal(await page.locator(".players .player-on-turn").count(), 1);
     if (process.env.SIX_SEAT_SCREENSHOT && dimensions.width === 1024)
       await page.screenshot({
         path: process.env.SIX_SEAT_SCREENSHOT,

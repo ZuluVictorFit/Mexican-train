@@ -104,7 +104,6 @@ body {
   border-color: #c9b394;
   color: #513b2c;
 }
-.hand-turn-controls .small-button:not(:disabled),
 .game-controls .small-button:not(:disabled) {
   background: #61412c;
   border-color: #61412c;
@@ -116,17 +115,7 @@ body {
   color: #4d3424;
 }
 
-/* Seat labels occupy toolbar/hand-header space, never board hit targets. */
-.table-seats {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #bd986b #38251b;
-}
+/* The local seat remains beside the hand. */
 .seat-badge {
   display: inline-flex;
   align-items: center;
@@ -193,28 +182,5 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .rail-domino.just-played {
     animation: none;
-  }
-}
-@media (max-width: 1100px) {
-  .board-controls .seat-badge .seat-name {
-    display: inline;
-  }
-  .table-seats .seat-badge {
-    max-width: 150px;
-  }
-  .table-seats {
-    gap: 3px;
-  }
-  .table-seats .seat-badge {
-    padding: 1px 4px 1px 2px;
-    font-size: 10px;
-  }
-  .table-seats .seat-train {
-    width: 20px;
-    height: 20px;
-    flex-basis: 20px;
-  }
-  .table-seats .seat-badge small {
-    font-size: 8px;
   }
 }

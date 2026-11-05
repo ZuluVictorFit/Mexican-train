@@ -19,6 +19,9 @@ the [wood-forward revision](cozy-wood-table-concept.png), followed by the
   direction. Its exact layout and details are not yet approved.
 - The current sound framework works for now; the user wants to revisit the
   audio later.
+- Keep the player list in the sidebar rather than duplicating it above the
+  table. Make the current turn prominent, and keep Draw and End turn large and
+  green, including a visibly disabled green state.
 
 ## Direction to review
 
@@ -60,9 +63,10 @@ illustrative. The room must never consume space needed for playable dominoes.
 
 ## Real-board visual check
 
-[Current wood-theme implementation](wood-theme-board-preview.png) shows the
+[Initial wood-theme implementation](wood-theme-board-preview.png) shows the
 actual board and controls on the design branch, using the same simulated game
-as the earlier study. Seat badges use real connection and turn state.
+as the earlier study. The duplicate player seats above the table were removed
+after review; the sidebar and prominent turn banner now show whose turn it is.
 
 [Wood-color preview on the real board](real-board-wood-preview.png) is a browser
 screenshot of the current game UI with temporary color and material styling. It

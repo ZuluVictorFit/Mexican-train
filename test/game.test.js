@@ -54,21 +54,25 @@ test("ending after a failed opening draw opens the train", () => {
   assert.equal(g.turn, 1);
   assert.equal(g.players[0].hand.length, 2);
 });
-test("final double forces draw then transfers cover obligation", () => {
+test("a final double is passed without drawing; a cover lets its owner go out", () => {
   let g = setup();
   g.players[0].first = false;
   g.players[0].hand = [t(6, 6)];
   g.trains["p:p0"].end = 6;
   g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
-  g = act(g, "p0", { type: "end-turn" }, rand);
+  assert.equal(g.pending.phase, "no-draw");
+  assert.equal(g.players[0].hand.length, 0);
+  assert.throws(() => act(g, "p0", { type: "draw" }, rand));
+  assert.throws(() => act(g, "p0", { type: "end-turn" }, rand));
+  g = act(g, "p0", { type: "cant-satisfy" }, rand);
   assert.equal(g.turn, 1);
-  assert.equal(g.players[0].open, true);
+  assert.equal(g.players[0].open, false);
   assert.equal(g.pending.train, "p:p0");
   assert.deepEqual(legalMoves(g, "p1"), [{ tile: "6-8", train: "p:p0" }]);
   g = act(g, "p1", { type: "play", tile: "6-8", train: "p:p0" }, rand);
   assert.equal(g.pending, null);
-  assert.equal(g.phase, "playing");
-  assert.equal(g.turn, 0);
+  assert.equal(g.phase, "round-end");
+  assert.equal(g.roundWinner, "p0");
 });
 test("final double with empty boneyard resolves after a cover", () => {
   let g = setup();
@@ -77,6 +81,7 @@ test("final double with empty boneyard resolves after a cover", () => {
   g.trains["p:p0"].end = 6;
   g.boneyard = [];
   g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
+  g = act(g, "p0", { type: "cant-satisfy" }, rand);
   g = act(g, "p1", { type: "play", tile: "6-8", train: "p:p0" }, rand);
   assert.equal(g.phase, "round-end");
   assert.equal(g.roundWinner, "p0");
@@ -92,12 +97,136 @@ test("uncoverable last double with empty boneyard is blocked and scored", () => 
   g.trains["p:p0"].end = 6;
   g.boneyard = [];
   g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
+  assert.equal(g.phase, "playing");
+  g = act(g, "p0", { type: "cant-satisfy" }, rand);
+  assert.equal(g.phase, "playing");
+  g = act(g, "p1", { type: "cant-satisfy" }, rand);
   assert.equal(g.phase, "round-end");
   assert.equal(g.results[0].blocked, true);
   assert.deepEqual(
     g.results[0].scores.map((x) => x.points),
     [0, 4],
   );
+});
+test("the first lap passes without draws or opening trains, and a cover ends that player's turn", () => {
+  let g = newGame(seats.slice(0, 3), 12, rand);
+  g.turn = 0;
+  g.players.forEach((p) => (p.first = false));
+  g.players[0].hand = [t(6, 6), t(1, 2)];
+  g.players[1].hand = [t(2, 3)];
+  g.players[2].hand = [t(6, 8), t(3, 4)];
+  g.boneyard = [t(1, 4), t(6, 10)];
+  g.trains["p:p0"].end = 6;
+  g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
+  assert.throws(() => act(g, "p0", { type: "draw" }, rand));
+  g = act(g, "p0", { type: "cant-satisfy" }, rand);
+  assert.throws(() => act(g, "p1", { type: "draw" }, rand));
+  g = act(g, "p1", { type: "cant-satisfy" }, rand);
+  assert(g.players.every((p) => !p.open));
+  assert.equal(g.boneyard.length, 2);
+  g = act(g, "p2", { type: "play", tile: "6-8", train: "p:p0" }, rand);
+  assert.equal(g.pending, null);
+  assert.equal(g.turn, 0);
+  assert.equal(g.boneyard.length, 2);
+});
+
+test("after one complete lap, drawing starts with the double's player", () => {
+  let g = newGame(seats.slice(0, 3), 12, rand);
+  g.turn = 0;
+  g.players.forEach((p) => (p.first = false));
+  g.players[0].hand = [t(6, 6), t(1, 2)];
+  g.players[1].hand = [t(2, 3), t(4, 5)];
+  g.players[2].hand = [t(3, 4)];
+  g.boneyard = [t(1, 4), t(6, 10), t(0, 8)];
+  g.trains["p:p0"].end = 6;
+  g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
+  for (const id of ["p0", "p1", "p2"])
+    g = act(g, id, { type: "cant-satisfy" }, rand);
+  assert.equal(g.turn, 0);
+  assert.equal(g.pending.phase, "draw");
+  assert.equal(g.boneyard.length, 3);
+  assert.throws(() => act(g, "p0", { type: "cant-satisfy" }, rand));
+  g = act(g, "p0", { type: "draw" }, rand);
+  g = act(g, "p0", { type: "end-turn" }, rand);
+  assert.equal(g.players[0].open, true);
+  assert.equal(g.turn, 1);
+  g = act(g, "p1", { type: "draw" }, rand);
+  g = act(g, "p1", { type: "play", tile: "6-10", train: "p:p0" }, rand);
+  assert.equal(g.pending, null);
+  assert.equal(g.turn, 2);
+});
+
+test("a player who drew after a final double is not out until they empty their hand", () => {
+  let g = setup();
+  g.players[0].first = false;
+  g.players[0].hand = [t(6, 6)];
+  g.players[1].hand = [t(6, 8), t(1, 2)];
+  g.trains["p:p0"].end = 6;
+  g.boneyard = [t(1, 4), t(2, 4)];
+  g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
+  g = act(g, "p0", { type: "cant-satisfy" }, rand);
+  // A player can miss a cover, as with ordinary plays.
+  g = act(g, "p1", { type: "cant-satisfy" }, rand);
+  g = act(g, "p0", { type: "draw" }, rand);
+  assert.equal(g.pending.finalOut, null);
+  g = act(g, "p0", { type: "end-turn" }, rand);
+  g = act(g, "p1", { type: "play", tile: "6-8", train: "p:p0" }, rand);
+  assert.equal(g.phase, "playing");
+  assert.equal(g.players[0].hand.length, 1);
+});
+
+test("a player can draw and cover their final double after the first lap", () => {
+  let g = setup();
+  g.players[0].first = false;
+  g.players[0].hand = [t(6, 6)];
+  g.players[1].hand = [t(1, 2)];
+  g.trains["p:p0"].end = 6;
+  g.boneyard = [t(6, 10)];
+  g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
+  g = act(g, "p0", { type: "cant-satisfy" }, rand);
+  g = act(g, "p1", { type: "cant-satisfy" }, rand);
+  g = act(g, "p0", { type: "draw" }, rand);
+  g = act(g, "p0", { type: "play", tile: "6-10", train: "p:p0" }, rand);
+  assert.equal(g.phase, "round-end");
+  assert.equal(g.roundWinner, "p0");
+});
+
+test("covering your own double during an opening run lets you keep building", () => {
+  let g = setup();
+  g.players[0].hand = [t(6, 6), t(6, 8), t(8, 9), t(2, 3)];
+  g.trains["p:p0"].end = 6;
+  g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
+  g = act(g, "p0", { type: "play", tile: "6-8", train: "p:p0" }, rand);
+  assert.equal(g.turn, 0);
+  assert.equal(g.pending, null);
+  g = act(g, "p0", { type: "play", tile: "8-9", train: "p:p0" }, rand);
+  assert.equal(g.turn, 0);
+  assert.equal(g.trains["p:p0"].end, 9);
+});
+
+test("missed covers do not falsely block an empty-boneyard round", () => {
+  let g = setup();
+  g.players[0].first = false;
+  g.players[0].hand = [t(6, 6), t(1, 2)];
+  g.players[1].hand = [t(6, 8), t(1, 3)];
+  g.trains["p:p0"].end = 6;
+  g.boneyard = [];
+  g = act(g, "p0", { type: "play", tile: "6-6", train: "p:p0" }, rand);
+  g = act(g, "p0", { type: "cant-satisfy" }, rand);
+  g = act(g, "p1", { type: "cant-satisfy" }, rand);
+  assert.equal(g.phase, "playing");
+  assert.equal(g.pending.phase, "draw");
+  assert.equal(g.turn, 0);
+});
+
+test("a previously saved double without a lap phase remains playable", () => {
+  let g = setup();
+  g.players[0].first = false;
+  g.trains["p:p0"].end = 6;
+  g.pending = { train: "p:p0", by: "p0", finalOut: null };
+  g = act(g, "p0", { type: "draw" }, rand);
+  assert.equal(g.pending.phase, "draw");
+  assert.equal(g.drawn, "1-4");
 });
 test("private view hides other hands and boneyard ordering", () => {
   const g = setup(),
@@ -175,7 +304,9 @@ test("complete games conserve every tile across all rounds for 2, 4 and 6 player
         else if (options.length) {
           const m = options[seeded(options.length)];
           g = act(g, p.id, { type: "play", ...m }, seeded);
-        } else if (g.drewThisTurn || !g.boneyard.length)
+        } else if (g.pending?.phase === "no-draw")
+          g = act(g, p.id, { type: "cant-satisfy" }, seeded);
+        else if (g.drewThisTurn || !g.boneyard.length)
           g = act(g, p.id, { type: "end-turn" }, seeded);
         else g = act(g, p.id, { type: "draw" }, seeded);
         const all = [

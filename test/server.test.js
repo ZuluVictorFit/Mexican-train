@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { io } from "socket.io-client";
 import { once } from "node:events";
+import { DatabaseSync } from "node:sqlite";
+import { newGame, act } from "../server/game.js";
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(fn) {
   for (let i = 0; i < 100; i++) {
@@ -168,6 +170,100 @@ test("lobby color changes and host leaving keep the table manageable", async () 
     assert((await send(b, "start", { code, engine: 12 })).ok);
     await until(() => b.state.game);
     assert.equal((await send(b, "leave", { code })).ok, false);
+  } finally {
+    for (const c of clients) c.s.disconnect();
+    if (server && !server.killed) {
+      server.kill("SIGTERM");
+      await once(server, "exit");
+    }
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a no-draw double lap resumes correctly after a server restart", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "mexican-double-lap-"));
+  const port = 31000 + Math.floor(Math.random() * 15000),
+    url = `http://127.0.0.1:${port}`,
+    path = join(dir, "rooms.sqlite");
+  const seats = [
+    { id: "a", session: "a".repeat(48), name: "A", color: "#123456" },
+    { id: "b", session: "b".repeat(48), name: "B", color: "#654321" },
+  ];
+  const tile = (a, b) => ({ id: `${a}-${b}`, a, b });
+  let game = newGame(seats, 12, () => 0);
+  game.turn = 0;
+  game.players[0].hand = [tile(6, 6), tile(1, 2)];
+  game.players[1].hand = [tile(3, 4)];
+  game.boneyard = [tile(1, 4), tile(6, 10)];
+  game.trains["p:a"].end = 6;
+  game = act(game, "a", { type: "play", tile: "6-6", train: "p:a" }, () => 0);
+  game = act(game, "a", { type: "cant-satisfy" }, () => 0);
+  const db = new DatabaseSync(path);
+  db.exec("CREATE TABLE rooms (code TEXT PRIMARY KEY, data TEXT NOT NULL)");
+  db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+    "LAP123",
+    JSON.stringify({
+      code: "LAP123",
+      host: "a",
+      seats,
+      revision: 1,
+      game,
+      commands: {},
+    }),
+  );
+  db.close();
+  let server;
+  const clients = [];
+  try {
+    server = await boot(port, path);
+    const b = await connect(url, `mt_session=${seats[1].session}`);
+    clients.push(b);
+    assert((await send(b, "resume", { code: "LAP123" })).ok);
+    await until(() => b.state?.game);
+    assert.equal(b.state.game.pending.phase, "no-draw");
+    assert.equal(b.state.game.pending.passes, 1);
+    assert.equal(
+      (
+        await send(b, "move", {
+          code: "LAP123",
+          revision: b.state.revision,
+          commandId: "early-draw",
+          action: { type: "draw" },
+        })
+      ).ok,
+      false,
+    );
+    assert(
+      (
+        await send(b, "move", {
+          code: "LAP123",
+          revision: b.state.revision,
+          commandId: "pass",
+          action: { type: "cant-satisfy" },
+        })
+      ).ok,
+    );
+    await until(() => b.state.game.pending.phase === "draw");
+    b.s.disconnect();
+    server.kill("SIGTERM");
+    await once(server, "exit");
+    server = await boot(port, path);
+    const a = await connect(url, `mt_session=${seats[0].session}`);
+    clients.push(a);
+    assert((await send(a, "resume", { code: "LAP123" })).ok);
+    await until(() => a.state?.game);
+    assert.equal(a.state.game.pending.phase, "draw");
+    assert.equal(a.state.game.turn, "a");
+    assert(
+      (
+        await send(a, "move", {
+          code: "LAP123",
+          revision: a.state.revision,
+          commandId: "draw",
+          action: { type: "draw" },
+        })
+      ).ok,
+    );
   } finally {
     for (const c of clients) c.s.disconnect();
     if (server && !server.killed) {

@@ -11,7 +11,7 @@ when they overlook a playable tile, and may then play any legal tile in their
 hand or end their turn and open their train. With an empty boneyard they may
 pass; a round is blocked only when nobody actually has a legal play. The game
 still rejects invalid placements and maintains double obligations. The interface
-no longer highlights playable trains or identifies an available move. A delayed,
+does not highlight playable trains; only an uncovered double is highlighted. A delayed,
 general reminder suggests drawing when a player cannot play. An optional guided
 mode may be added later. These decisions supersede earlier mandatory-draw and
 forced-play wording below where it conflicts.
@@ -29,7 +29,13 @@ forced-play wording below where it conflicts.
   train open and pass.
 - An exposed double must be covered before play on another train. If the player
   cannot cover it, the obligation passes to the next player(s).
-- A player may draw one tile per turn even if they have a play. After drawing,
+- For the first lap after a double, each player tries their hand and may choose
+  Can't satisfy to pass the obligation. Nobody draws or opens their train when
+  passing during this lap. Once everyone has passed, the player who laid the
+  double takes the next attempt; players may then draw one if needed. A player
+  who covers another player's double ends their turn, and play continues from
+  that player. Players may still overlook a matching tile, as with other moves.
+- Outside the first double-cover lap, a player may draw one tile per turn even if they have a play. After drawing,
   they may play any legal tile or end their turn and open their personal train.
 - On a player's first turn, they may lay as many matching tiles as desired on
   their personal train.
@@ -50,13 +56,10 @@ forced-play wording below where it conflicts.
   covering player's first turn. If a double prevents someone from starting their
   train on their first turn, their later turns use the normal one-tile rule;
   they do not get a delayed opening run.
-- When a player's last tile is a double, they immediately draw one and try to
-  cover it. If they cannot, they keep the drawn tile and the normal cover rule
-  applies; play continues. The double must be covered before the round can end.
-- If the boneyard is already empty when the last tile is played, the other players
-  try to cover the double; once it is covered, the player who emptied their hand
-  goes out. If nobody can cover it, the round is blocked and everyone scores
-  the tiles left in their hand.
+- A last-tile double follows the same no-draw lap. If covered while its owner
+  still has an empty hand, that player goes out. If the obligation returns to
+  them and they draw, they are no longer out until they empty their hand. With
+  an empty boneyard, if nobody can cover, the round is blocked and scored.
 - Host chooses a full 12-to-0 game or a shorter starting double.
 - Score remaining tiles by the sum of their numbers; 0–0 is zero. Lowest total wins.
 - If players tie for the lowest final game total, the tied player with the lowest
@@ -81,14 +84,14 @@ forced-play wording below where it conflicts.
 | Other players' routes    | Play only when marked open; first tile must match engine if empty.                                                                                                                                                                                                     | Proposed                                                      |
 | Community route          | After opening turns, any player may start it on their turn, including someone whose personal train has not started; once started, everyone may play there. Only one exists.                                                                                            | Start and count confirmed; ongoing availability proposed      |
 | Normal turn              | Play one matching tile on a legal route, or draw once and then play or end the turn.                                                                                                                                                                                   | Confirmed                                                     |
-| Draw                     | Draw once even when a legal play exists. Play any legal tile, or end the turn and open your train.                                                                                                                                                                     | Confirmed                                                     |
+| Draw                     | Outside the first double-cover lap, draw once even when a legal play exists. Play any legal tile, or end the turn and open your train.                                                                                                                                 | Confirmed                                                     |
 | Open/close marker        | Failed play opens your route. Successfully playing on your own route closes it; playing on the community train or another player's train leaves its marker unchanged.                                                                                                  | Confirmed                                                     |
 | Double                   | Play the double sideways; immediately attempt a covering tile. Other routes remain blocked until covered. Outside an opening turn, covering your own double ends your turn; during an opening run, you may continue after covering it.                                 | Obligation and turn behavior confirmed; presentation proposed |
 | Multiple doubles         | During an opening run, a player may continue after covering a double; any later double also creates its own cover obligation.                                                                                                                                          | Follows confirmed opening and double rules                    |
-| Failed double cover      | Draw one if needed; cover if possible; otherwise open own train and pass the obligation clockwise.                                                                                                                                                                     | Proposed application of confirmed rules                       |
+| Failed double cover      | Pass without opening a train during the first no-draw lap. After the lap, try the hand, draw if needed, or pass when the boneyard is empty.                                                                                                                            | Confirmed                                                     |
 | Double on a closed route | Next players may cover the exposed double even though that route is otherwise closed.                                                                                                                                                                                  | Proposed; needed for global obligation                        |
 | Empty boneyard           | No draw; open own route and pass if unable to play.                                                                                                                                                                                                                    | Confirmed                                                     |
-| Last tile is double      | Draw one and try to cover. If unable, keep it and pass the obligation; play continues. If the boneyard is already empty, other players try to cover; once covered, the original player goes out. If nobody can cover it, score a blocked round.                        | Confirmed                                                     |
+| Last tile is double      | The same no-draw lap applies. A cover ends the round if the original player still has an empty hand; drawing means they are no longer out.                                                                                                                             | Confirmed                                                     |
 | Blocked round            | After every player consecutively has no legal play with an empty boneyard, score remaining hands.                                                                                                                                                                      | Proposed                                                      |
 | Round score              | Sum both numbers on every remaining tile; 0–0 counts zero.                                                                                                                                                                                                             | Confirmed                                                     |
 | Winner                   | Lowest cumulative score after final round. Break a tie using the lowest final-round score among tied players; if still tied, choose randomly among those still tied.                                                                                                   | Confirmed                                                     |
@@ -101,11 +104,12 @@ explicitly chooses a different set in a later feature.
 
 ## Double example
 
-Morgan plays 6–6 on an open route. That endpoint now requires a 6. Morgan may
-cover with a matching tile; if none, draw one. If Morgan ends the turn without covering it, Morgan opens their own train and
-the next player must cover it before touching any other route. The community train does not bypass the obligation.
+Morgan plays 6–6 on an open route. Morgan may cover it from hand or choose
+Can't satisfy. Each other player then has the same choice without drawing or
+opening their train. A cover ends the covering player's turn. If all pass, it
+returns to Morgan, who can draw if needed; the obligation continues around the
+table until covered. The community train does not bypass the obligation.
 
-The exact marker behavior while a double is unresolved remains to be confirmed.
 After covering a double in a first-turn run, the player may continue building
 their personal train. Also decide whether a
 player can voluntarily end an opening without laying a tile. On a first turn,
@@ -137,11 +141,11 @@ matrix or decide edge cases still marked open.
 2. **Opening draw:** A player cannot start their train, draws a matching tile,
    and plays it. They may continue their opening run using other matching tiles;
    once done they end the turn without drawing to extend it further.
-3. **Last tile double, draw fails:** A player's last tile is 6–6. They immediately
-   draw 2–3, which cannot cover the 6–6, and keep it. Their train opens and the
-   next player must attempt the cover; the game continues.
+3. **Last tile double, draw fails:** A player's last tile is 6–6. Everyone
+   passes the no-draw lap. The original player then draws 2–3, cannot cover,
+   and ends their turn. They keep the tile and open their train; play continues.
 4. **Last tile double, no tiles to draw:** A player lays their last tile, 6–6,
-   with an empty boneyard. Other players attempt the cover. If someone covers it,
+   with an empty boneyard. Everyone gets a no-draw cover attempt. If someone covers it,
    the original player goes out. If nobody can, the round is blocked and everyone
    scores their remaining tiles, including zero for the empty hand.
 5. **Final-game tie:** After the last round, two players are tied for the lowest

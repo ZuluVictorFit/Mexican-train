@@ -255,8 +255,8 @@ import {
         e.addEventListener("pointerdown", startDrag);
         e.addEventListener("click", (ev) => {
           if (ev.detail === 0) {
-            select(t.id);
-            flip();
+            if (selected === t.id) flip();
+            else select(t.id);
           }
         });
         return e;
@@ -309,6 +309,7 @@ import {
     if (e.button !== 0 || drag) return;
     const t = tile(e.currentTarget.dataset.id);
     if (!t) return;
+    const wasSelected = selected === t.id;
     select(t.id);
     t.z = Math.max(0, ...state.tiles.map((x) => x.z)) + 1;
     position(e.currentTarget, t);
@@ -321,6 +322,7 @@ import {
       x: t.x,
       y: t.y,
       moved: false,
+      wasSelected,
       ghost: null,
     };
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -389,8 +391,9 @@ import {
       return;
     }
     if (!drag.moved) {
+      const shouldFlip = drag.wasSelected;
       cleanup();
-      flip();
+      if (shouldFlip) flip();
       return;
     }
     const insideHand = inside(
@@ -657,7 +660,9 @@ import {
             : `${train.name} is open`,
         "pointer-events": "none",
       });
-      marker.append(locomotiveModel(svgElement, train.color));
+      const locomotive = locomotiveModel(svgElement, train.color);
+      locomotive.setAttribute("transform", "scale(1.62)");
+      marker.append(locomotive);
       svg.append(marker);
     }
     for (const train of table.trains) {
@@ -1093,11 +1098,10 @@ import {
     }
     if (drawnTile) {
       latestDraw = drawnTile.id;
-      selected = drawnTile.id;
+      selected = null;
       lastDrawNotice = `You drew ${drawnTile.a} | ${drawnTile.b}.`;
     } else if (g.drawn && tile(g.drawn)) {
       latestDraw = g.drawn;
-      selected = g.drawn;
     } else if (g.turn === r.me && !wasMyTurn) {
       latestDraw = null;
       lastDrawNotice = "";
@@ -1180,23 +1184,30 @@ import {
           current.turn === room.me &&
           current.round === hintRound &&
           !current.drawn &&
+          current.pending?.phase !== "no-draw" &&
           !current.openingPlayed
         )
           tell("If you can't play, remember you can draw from the boneyard.");
       }, 30000);
     }
-    $("drawButton").disabled = !myTurn || !g.boneyard || g.drewThisTurn;
+    const noDrawLap = g.pending?.phase === "no-draw";
+    $("drawButton").disabled =
+      !myTurn || !g.boneyard || g.drewThisTurn || noDrawLap;
     $("drawButton").textContent = "Draw";
     $("drawButton").title = !myTurn
       ? "Wait for your turn"
-      : g.drewThisTurn
-        ? "Already drew this turn"
-        : !g.boneyard
-          ? "The boneyard is empty"
-          : "";
+      : noDrawLap
+        ? "The double must go around the table before anyone draws"
+        : g.drewThisTurn
+          ? "Already drew this turn"
+          : !g.boneyard
+            ? "The boneyard is empty"
+            : "";
     $("endOpening").hidden =
       !myTurn ||
+      noDrawLap ||
       !(g.drewThisTurn || !g.boneyard || (g.openingPlayed && !g.pending));
+    $("cantSatisfy").hidden = !myTurn || !noDrawLap;
     $("endOpening").textContent =
       g.openingPlayed && !g.pending && !g.drawn
         ? "End opening turn"
@@ -1219,16 +1230,18 @@ import {
     $("actionBanner").textContent =
       g.phase !== "playing"
         ? $("gameMessage").textContent
-        : myTurn && drawn
-          ? `You drew ${drawn.a} | ${drawn.b}. Play a tile or end your turn.`
-          : myTurn && g.pending
-            ? "Cover the exposed double with a matching tile."
-            : myTurn && g.openingPlayed
-              ? "Keep building your train, or choose End opening turn when you are done."
-              : myTurn
-                ? "Your turn: select a tile and choose a train."
-                : lastDrawNotice ||
-                  `Waiting for ${turnPlayer?.name || "the next player"}.`;
+        : myTurn && noDrawLap
+          ? "Cover the double from your hand, or choose Can't satisfy. No one draws on this lap."
+          : myTurn && drawn
+            ? `You drew ${drawn.a} | ${drawn.b}. Play a tile or end your turn.`
+            : myTurn && g.pending
+              ? "Cover the exposed double with a matching tile."
+              : myTurn && g.openingPlayed
+                ? "Keep building your train, or choose End opening turn when you are done."
+                : myTurn
+                  ? "Your turn: select a tile and choose a train."
+                  : lastDrawNotice ||
+                    `Waiting for ${turnPlayer?.name || "the next player"}.`;
     const results = $("roundResults");
     results.replaceChildren();
     for (const player of g.players) {
@@ -1380,6 +1393,9 @@ import {
   );
   $("drawButton").addEventListener("click", () => move({ type: "draw" }));
   $("endOpening").addEventListener("click", () => move({ type: "end-turn" }));
+  $("cantSatisfy").addEventListener("click", () =>
+    move({ type: "cant-satisfy" }),
+  );
   $("nextRound").addEventListener("click", () =>
     send("next-round", { code: room.code }),
   );

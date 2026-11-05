@@ -42,8 +42,14 @@ tile or use **End turn** to open your train and pass. After an opening run, use
 two parallel tracks, with matching halves adjacent and doubles turned across.
 Use the mouse wheel or zoom buttons, drag-to-pan, **Fit table**, and each train's
 **Focus** control to inspect longer trains. Freshly dealt tiles fit in the hand;
-you can then arrange them freely. **Fit hand** and **Restore view** change only
+you can then arrange them freely. Click a tile to select it; click it again to
+swap its ends. Press R to turn it 90 degrees. **Fit hand** and **Restore view** change only
 the view, without rearranging tiles.
+
+When a double is exposed, everyone first has one chance to cover it from hand
+without drawing. Choose **Can't satisfy** to pass that chance. If nobody covers
+it, the player who laid it tries again and draws if needed; the obligation then
+continues around the table until covered.
 
 Each player can choose their own sound settings in the sidebar. Turn endings
 have a separate toggle, and the train-up sound can be off, a short chug and

@@ -173,6 +173,27 @@ db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
     commands: {},
   }),
 );
+const lapGame = newGame(seats, 12, () => 0);
+lapGame.turn = 0;
+lapGame.players.forEach((p) => (p.first = false));
+lapGame.players[0].hand = [t(6, 6), t(1, 2)];
+lapGame.players[1].hand = [t(3, 4)];
+lapGame.boneyard = [t(1, 4), t(6, 10)];
+lapGame.trains["p:seat0"] = {
+  end: 6,
+  tiles: [{ id: "6-12", a: 12, b: 6, by: "seat0" }],
+};
+db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+  "TEST30",
+  JSON.stringify({
+    code: "TEST30",
+    host: "seat0",
+    seats,
+    revision: 0,
+    game: lapGame,
+    commands: {},
+  }),
+);
 const sixSeats = Array.from({ length: 6 }, (_, i) => ({
   id: `seat${i}`,
   session: i < 2 ? sessions[i] : String(i).repeat(48),
@@ -189,6 +210,20 @@ db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
     seats: sixSeats,
     revision: 0,
     game: sixGame,
+    commands: {},
+  }),
+);
+const markersGame = newGame(sixSeats, 12, () => 0);
+markersGame.turn = 0;
+markersGame.players.forEach((p) => (p.open = true));
+db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+  "TEST31",
+  JSON.stringify({
+    code: "TEST31",
+    host: "seat0",
+    seats: sixSeats,
+    revision: 0,
+    game: markersGame,
     commands: {},
   }),
 );
@@ -249,6 +284,18 @@ try {
     );
     assert.equal(await p.locator(".rail-domino.just-played").count(), 0);
     assert.equal(await p.locator('[data-train-marker="community"]').count(), 1);
+    assert.equal(
+      await p
+        .locator('[data-train-marker="community"] .locomotive-model')
+        .getAttribute("transform"),
+      "scale(1.62)",
+    );
+    assert.equal(
+      await p
+        .locator('[data-quick-train="community"] .locomotive-model')
+        .getAttribute("transform"),
+      "scale(1.08)",
+    );
     assert.equal(await p.locator('[data-quick-train="community"]').count(), 1);
     assert(
       (await p
@@ -342,7 +389,7 @@ try {
         await p.locator("#actionBanner").textContent(),
         /Play a tile or end your turn/,
       );
-      assert(await drawn.evaluate((e) => e.classList.contains("selected")));
+      assert(!(await drawn.evaluate((e) => e.classList.contains("selected"))));
       assert.equal(await p.locator(".endpoint.valid").count(), 0);
       const target = await p
         .locator('.endpoint[data-train="p:seat0"]')
@@ -745,6 +792,44 @@ try {
       );
       await page.setViewportSize(dimensions);
     }
+    const chosen = page.locator('[data-id="0-1"]');
+    const initialFaces = await chosen.locator(".face").allTextContents();
+    await chosen.click();
+    assert(await chosen.evaluate((el) => el.classList.contains("selected")));
+    assert.deepEqual(
+      await chosen.locator(".face").allTextContents(),
+      initialFaces,
+      "first click selects without flipping",
+    );
+    await chosen.click();
+    assert.deepEqual(
+      await chosen.locator(".face").allTextContents(),
+      [...initialFaces].reverse(),
+      "second click flips",
+    );
+    await chosen.click();
+    assert.deepEqual(
+      await chosen.locator(".face").allTextContents(),
+      initialFaces,
+    );
+    await page.locator('[data-id="0-2"]').click();
+    await chosen.focus();
+    await page.keyboard.press("Enter");
+    assert.deepEqual(
+      await chosen.locator(".face").allTextContents(),
+      initialFaces,
+      "keyboard selection does not flip",
+    );
+    await page.keyboard.press("Enter");
+    assert.deepEqual(
+      await chosen.locator(".face").allTextContents(),
+      [...initialFaces].reverse(),
+      "keyboard activation flips the selected tile",
+    );
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("r");
+    assert.match(await chosen.getAttribute("style"), /--rotation: 90deg/);
+    for (let i = 0; i < 3; i++) await page.keyboard.press("r");
     const first = page.locator(".domino").first();
     await first.scrollIntoViewIfNeeded();
     const beforeMove = await first.getAttribute("style");
@@ -869,6 +954,80 @@ try {
   assert(decoded.every((sound) => sound.peak > 0.1 && sound.duration > 0.5));
   assert(decoded[2].duration > decoded[1].duration);
   await cv.close();
+
+  const markersContext = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+  });
+  await markersContext.addCookies([
+    { name: "mt_session", value: sessions[0], url },
+  ]);
+  const markersPage = await markersContext.newPage();
+  await markersPage.goto(url);
+  await markersPage.evaluate(() =>
+    localStorage.setItem("mexican-train-room", "TEST31"),
+  );
+  await markersPage.reload();
+  await markersPage.waitForSelector("#gameArea:not([hidden])");
+  assert.equal(await markersPage.locator(".hub-train-marker").count(), 7);
+  if (process.env.MARKERS_SCREENSHOT)
+    await markersPage.screenshot({ path: process.env.MARKERS_SCREENSHOT });
+  await markersContext.close();
+
+  const lapContexts = await Promise.all(
+    sessions.map(async (session) => {
+      const context = await browser.newContext({
+        viewport: { width: 1024, height: 768 },
+      });
+      await context.addCookies([{ name: "mt_session", value: session, url }]);
+      const page = await context.newPage();
+      await page.goto(url);
+      await page.evaluate(() =>
+        localStorage.setItem("mexican-train-room", "TEST30"),
+      );
+      await page.reload();
+      await page.waitForSelector("#gameArea:not([hidden])");
+      return { context, page };
+    }),
+  );
+  const lap0 = lapContexts[0].page,
+    lap1 = lapContexts[1].page;
+  await lap0.locator('[data-id="6-6"]').click();
+  await lap0.locator('.train-line [data-train="p:seat0"]').click();
+  await lap0.waitForSelector("#cantSatisfy:not([hidden])");
+  assert(await lap0.locator("#drawButton").isDisabled());
+  assert.match(
+    await lap0.locator("#actionBanner").textContent(),
+    /No one draws on this lap/,
+  );
+  assert.equal(await lap0.locator(".rail-domino.double-pending").count(), 1);
+  if (process.env.LAP_SCREENSHOT)
+    await lap0.screenshot({ path: process.env.LAP_SCREENSHOT });
+  await lap0.locator("#cantSatisfy").click();
+  await lap1.waitForSelector("#cantSatisfy:not([hidden])");
+  assert(await lap1.locator("#drawButton").isDisabled());
+  assert.equal(await lap1.locator('[data-train-marker="p:seat0"]').count(), 0);
+  await lap1.locator("#cantSatisfy").click();
+  await lap0.waitForFunction(
+    () => !document.querySelector("#drawButton").disabled,
+  );
+  assert(await lap0.locator("#cantSatisfy").isHidden());
+  await lap0.locator("#drawButton").click();
+  await lap0.waitForSelector("#endOpening:not([hidden])");
+  await lap0.locator("#endOpening").click();
+  await lap1.waitForFunction(
+    () => !document.querySelector("#drawButton").disabled,
+  );
+  assert.equal(await lap1.locator('[data-train-marker="p:seat0"]').count(), 1);
+  await lap1.locator("#drawButton").click();
+  await lap1.waitForSelector('.domino[data-id="6-10"]');
+  await lap1.locator('.domino[data-id="6-10"]').click();
+  await lap1.locator('.train-line [data-train="p:seat0"]').click();
+  await lap0.waitForSelector('.rail-domino[data-tile="6-10"]');
+  assert.equal(await lap0.locator(".double-pending").count(), 0);
+  await Promise.all(lapContexts.map(({ context }) => context.close()));
+  console.log(
+    "The no-draw double lap and subsequent draws passed in two browsers.",
+  );
 
   const soundContext = await browser.newContext({
     viewport: { width: 1440, height: 900 },

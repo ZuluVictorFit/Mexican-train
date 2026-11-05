@@ -1,5 +1,8 @@
 # UI and interaction proposal
 
+The interaction details below describe the earlier prototype. The current game
+selects a tile on the first click and flips it on the second; R rotates it 90°.
+
 Status: warm, realistic wooden-table direction approved; detailed interaction and
 layout proposals still need review.
 Confirmed controls are click/tap to swap ends and R to rotate 90 degrees.
@@ -79,17 +82,17 @@ tiles appear with no overlap; subsequent movement belongs entirely to the player
 Do not sort, snap, pack, or rearrange them after a draw, play, resize, camera move,
 or reconnect. A deliberate optional Arrange action can be discussed later.
 
-| Input | Proposed behavior |
-| --- | --- |
-| Drag inside tray | Move freely in continuous coordinates; allow overlap; lifted tile comes to front. |
-| Click/tap without drag | Select the tile and swap its displayed ends. Does not play it. |
-| R while tile focused | Rotate 90 degrees about its center; keep its two values legible. |
-| Tablet Rotate button | Same quarter-turn action without a keyboard. |
-| Flip button | Same swap-ends action as click; also useful to explain the control. |
-| Drag to legal board endpoint | Show preview; release submits exactly one play. Invalid release restores original tray position. |
-| Select + Play control | Enter placement mode, then tap a legal endpoint. Supports touch and keyboard without precision dragging. |
-| Escape / Cancel | Cancel placement or in-progress manipulation without losing the original position. |
-| Draw / Pass | Enable only when rules permit. New tile appears in visible free space without moving existing tiles. |
+| Input                        | Proposed behavior                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Drag inside tray             | Move freely in continuous coordinates; allow overlap; lifted tile comes to front.                        |
+| Click/tap without drag       | Select the tile and swap its displayed ends. Does not play it.                                           |
+| R while tile focused         | Rotate 90 degrees about its center; keep its two values legible.                                         |
+| Tablet Rotate button         | Same quarter-turn action without a keyboard.                                                             |
+| Flip button                  | Same swap-ends action as click; also useful to explain the control.                                      |
+| Drag to legal board endpoint | Show preview; release submits exactly one play. Invalid release restores original tray position.         |
+| Select + Play control        | Enter placement mode, then tap a legal endpoint. Supports touch and keyboard without precision dragging. |
+| Escape / Cancel              | Cancel placement or in-progress manipulation without losing the original position.                       |
+| Draw / Pass                  | Enable only when rules permit. New tile appears in visible free space without moving existing tiles.     |
 
 The click/drag threshold should be small but explicit (initial proposal: 6 CSS px;
 validate on touch). A drag must never produce an accidental flip on release.

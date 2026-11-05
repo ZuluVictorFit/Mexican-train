@@ -52,7 +52,7 @@ omits the community train; the next shows one but disconnects it from the hub.
 They misrepresent the selected alternating lanes and open-train markers, repeat
 tiles, and the earlier images put the engine tile in the hand. The real hand
 must fit the deal with space to arrange, support free placement and slight
-overlap, and retain click-to-flip and R-to-rotate.
+overlap, select-on-first-click, flip-on-second-click, and R-to-rotate.
 
 The real design must preserve the single community train, user-selected train
 colors, readable value-colored numbers, open-train markers, unobtrusive pending

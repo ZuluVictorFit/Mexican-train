@@ -163,16 +163,21 @@ function advance(g, rand) {
 }
 function draw(g) {
   const p = active(g);
+  if (g.pending?.phase === "no-draw")
+    fail("Pass the double around the table before drawing.");
   if (g.drewThisTurn || g.drawn) fail("You already drew this turn.");
   if (!g.boneyard.length) fail("The boneyard is empty.");
   const t = g.boneyard.shift();
   p.hand.push(t);
   g.drawn = t.id;
   g.drewThisTurn = true;
+  if (g.pending?.finalOut === p.id) g.pending.finalOut = null;
 }
 export function act(game, id, command, rand = randomInt) {
   const g = structuredClone(game);
   g.drewThisTurn ??= !!g.drawn;
+  // Existing saved rooms may contain a double from the previous rules.
+  if (g.pending && !g.pending.phase) g.pending.phase = "draw";
   if (g.phase !== "playing") fail("The round is not in play.");
   const p = player(g, id);
   if (!p || active(g).id !== id) fail("It is not your turn.");
@@ -181,7 +186,21 @@ export function act(game, id, command, rand = randomInt) {
     draw(g);
     return g;
   }
+  if (command.type === "cant-satisfy") {
+    if (g.pending?.phase !== "no-draw")
+      fail("There is no no-draw double attempt to pass.");
+    g.pending.passes = (g.pending.passes || 0) + 1;
+    if (g.pending.passes >= g.players.length) {
+      g.pending.phase = "draw";
+      // If the boneyard is empty, end only if nobody can actually cover it.
+      if (!g.boneyard.length) g.passes = g.players.length;
+    }
+    advance(g, rand);
+    return g;
+  }
   if (command.type === "end-turn") {
+    if (g.pending?.phase === "no-draw")
+      fail("Use Can't satisfy to pass this double without drawing.");
     if (
       !g.drewThisTurn &&
       !g.drawn &&
@@ -237,26 +256,13 @@ export function act(game, id, command, rand = randomInt) {
   }
   if (p.first) g.openingPlayed = true;
   if (tile.a === tile.b) {
-    g.pending = { train: move.train, by: id, finalOut: null };
-    if (p.hand.length === 0) {
-      if (g.boneyard.length) {
-        const t = g.boneyard.shift();
-        p.hand.push(t);
-        g.drawn = t.id;
-        g.drewThisTurn = true;
-      } else {
-        g.pending.finalOut = id;
-        if (
-          !g.players.some(
-            (other) =>
-              other.id !== id &&
-              other.hand.some((t) => t.a === train.end || t.b === train.end),
-          )
-        ) {
-          endRound(g, null, rand);
-        } else advance(g, rand);
-      }
-    }
+    g.pending = {
+      train: move.train,
+      by: id,
+      finalOut: p.hand.length === 0 ? id : null,
+      phase: "no-draw",
+      passes: 0,
+    };
     return g;
   }
   if (p.hand.length === 0) {

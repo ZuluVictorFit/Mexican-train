@@ -1117,6 +1117,7 @@ import {
       $("cameraButton").textContent = camera
         ? "Playing view"
         : "Table perspective";
+      $("cameraButton").setAttribute("aria-pressed", String(camera));
     }
     $("roundLabel").textContent = `Round ${g.round} · ${g.engine}`;
     const turnPlayer = g.players.find((p) => p.id === g.turn);
@@ -1155,6 +1156,17 @@ import {
         b.textContent = p.name + (p.id === r.me ? " (you)" : "");
         small.textContent = `${p.score} points · ${p.count} tiles${p.open ? " · OPEN" : ""}`;
         text.append(b, small);
+        if (g.results.length) {
+          const rounds = document.createElement("small");
+          rounds.className = "player-round-scores";
+          rounds.textContent = g.results
+            .map((result) => {
+              const score = result.scores.find((s) => s.id === p.id);
+              return `${result.engine}–${result.engine}: ${score?.points ?? 0}`;
+            })
+            .join(" · ");
+          text.append(rounds);
+        }
         li.append(avatar, text);
         if (active) {
           const turn = document.createElement("em");
@@ -1218,6 +1230,7 @@ import {
     document.querySelector(".game-controls").hidden =
       $("nextRound").hidden && $("rematch").hidden && $("leaveGame").hidden;
     const winner = g.players.find((p) => p.id === g.gameWinner);
+    $("boneyardCount").textContent = g.boneyard;
     $("gameMessage").textContent =
       g.phase === "finished"
         ? `${winner?.name} wins the game!`
@@ -1225,7 +1238,8 @@ import {
           ? `Round complete. ${g.players.find((p) => p.id === g.roundWinner)?.name} starts the next round.`
           : g.pending
             ? "Cover the exposed double before playing elsewhere."
-            : `${g.boneyard} tiles in the boneyard.`;
+            : "";
+    $("gameMessage").hidden = !$("gameMessage").textContent;
     const drawn = g.drawn && tile(g.drawn);
     $("actionBanner").textContent =
       g.phase !== "playing"
@@ -1242,26 +1256,6 @@ import {
                   ? "Your turn: select a tile and choose a train."
                   : lastDrawNotice ||
                     `Waiting for ${turnPlayer?.name || "the next player"}.`;
-    const results = $("roundResults");
-    results.replaceChildren();
-    for (const player of g.players) {
-      const line = document.createElement("div");
-      line.className = "score-line";
-      const total = document.createElement("b");
-      total.textContent = `${player.name}: ${player.score} points`;
-      line.append(total);
-      if (g.results.length) {
-        const rounds = document.createElement("small");
-        rounds.textContent = g.results
-          .map((result) => {
-            const score = result.scores.find((s) => s.id === player.id);
-            return `${result.engine}–${result.engine}: ${score?.points ?? 0}`;
-          })
-          .join(" · ");
-        line.append(rounds);
-      }
-      results.append(line);
-    }
     renderHand();
     board(g, arrivingTile);
     if (drawnTile || (!sameRound && g.drawn)) {
@@ -1418,6 +1412,7 @@ import {
     $("cameraButton").textContent = camera
       ? "Playing view"
       : "Table perspective";
+    $("cameraButton").setAttribute("aria-pressed", String(camera));
     updateSelection();
   });
   document.addEventListener("keydown", (e) => {

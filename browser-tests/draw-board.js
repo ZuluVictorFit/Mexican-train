@@ -306,6 +306,13 @@ try {
     assert.equal(await p.locator(".double-pending").count(), 0);
     assert.equal(await p.locator(".hand-header #drawButton").count(), 1);
     assert.equal(await p.locator(".hand-header #endOpening").count(), 1);
+    assert.equal(await p.locator("#boneyardCount").textContent(), "2");
+    assert.equal(await p.locator(".board-controls #cameraButton").count(), 1);
+    assert.equal(await p.locator(".topbar #cameraButton").count(), 0);
+    assert.match(
+      await p.locator(".sidebar-bottom").textContent(),
+      /you guys are a bunch of nerds/,
+    );
     const drawBox = await p.locator("#drawButton").boundingBox();
     assert(
       drawBox.width >= 112 && drawBox.height >= 46,
@@ -368,6 +375,7 @@ try {
     assert.match(await p.locator("#actionBanner").textContent(), /Your turn/);
     await p.click("#drawButton");
     await p.waitForSelector(".domino.drawn");
+    assert.equal(await p.locator("#boneyardCount").textContent(), "1");
     await green("#drawButton");
     await green("#endOpening");
     const endBox = await p.locator("#endOpening").boundingBox();
@@ -512,12 +520,12 @@ try {
     await p.screenshot({ path: process.env.COMPACT_SCREENSHOT });
   assert.match(
     await p.locator("#roundResults").textContent(),
-    /Avery: 17 points/,
+    /Avery(?: \(you\))?17 points/,
   );
   assert.match(await p.locator("#roundResults").textContent(), /12–12: 17/);
   assert.match(
     await p.locator("#roundResults").textContent(),
-    /Morgan: 24 points/,
+    /Morgan(?: \(you\))?24 points/,
   );
   await p
     .getByRole("button", { name: "Expand Your train", exact: true })
@@ -720,7 +728,7 @@ try {
   assert.equal(await p.locator(".train-gap").textContent(), "+9");
   assert.match(
     await p.locator("#roundResults").textContent(),
-    /Avery: 17 points/,
+    /Avery(?: \(you\))?17 points/,
   );
   console.log(
     "All 13 dominoes render on the table; zoom, fit and focus passed.",

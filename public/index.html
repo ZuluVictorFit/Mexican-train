@@ -88,14 +88,6 @@
         ><span class="status-separator"></span
         ><span><span id="roundLabel">Round 1 · 12</span></span>
       </div>
-      <button
-        class="quiet-button"
-        id="cameraButton"
-        type="button"
-        aria-pressed="false"
-      >
-        Table perspective
-      </button>
     </header>
     <main class="app-layout" id="gameArea" hidden>
       <section class="game-column" aria-label="Game table and your hand">
@@ -117,6 +109,8 @@
             <button id="zoomOut" type="button" aria-label="Zoom out">−</button
             ><button id="zoomIn" type="button" aria-label="Zoom in">+</button
             ><button id="fitBoard" type="button">Fit table</button
+            ><button id="cameraButton" type="button" aria-pressed="false">
+              Table perspective</button
             ><span>Drag table to pan</span>
           </div>
           <div class="board-viewport" id="boardViewport">
@@ -299,7 +293,7 @@
           <div class="section-heading">
             <span>AT THE TABLE</span><span class="player-count">6 PLAYERS</span>
           </div>
-          <ul class="players">
+          <ul class="players" id="roundResults">
             <li>
               <span class="player-avatar teal">Y</span
               ><span><b>You</b><small>YOUR TRAIN</small></span
@@ -326,15 +320,14 @@
           </ul>
         </div>
         <div class="side-section">
-          <div class="section-heading"><span>SCOREBOARD</span></div>
-          <div id="roundResults" class="round-results"></div>
-        </div>
-        <div class="side-section">
-          <div class="section-heading"><span>HOW TO PLAY</span></div>
-          <p class="side-copy">
-            Arrange your tiles however you like. Select one, then choose a train
-            on the table.
-          </p>
+          <div
+            class="boneyard-count"
+            aria-label="Tiles remaining in the boneyard"
+          >
+            <span>BONEYARD</span>
+            <strong id="boneyardCount">0</strong>
+            <span>tiles remaining</span>
+          </div>
           <div class="game-controls">
             <button id="nextRound" class="small-button" type="button" hidden>
               Start next round</button
@@ -431,7 +424,9 @@
             </fieldset>
           </details>
         </div>
-        <div class="sidebar-bottom">MADE FOR GOOD COMPANY <span>✣</span></div>
+        <div class="sidebar-bottom">
+          you guys are a bunch of nerds <span>✣</span>
+        </div>
       </aside>
     </main>
     <div class="notice" id="notice" role="status" aria-live="polite"></div>

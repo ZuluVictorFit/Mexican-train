@@ -787,9 +787,32 @@ kbd {
   font-weight: 700;
 }
 .players small {
-  font-size: 8px;
-  color: #9da99a;
+  font-size: 10px;
+  color: #647c69;
   letter-spacing: 0.5px;
+}
+.players .player-round-scores {
+  font-size: 9px;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.boneyard-count {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #607966;
+  font-size: 11px;
+}
+.boneyard-count span:first-child {
+  flex-basis: 100%;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+}
+.boneyard-count strong {
+  color: #284936;
+  font: 700 34px/1 Georgia, serif;
 }
 .players em {
   font-style: normal;
@@ -1252,22 +1275,6 @@ kbd {
 .train-chip span + span {
   border-left: 1px solid #c9bdab;
 }
-.round-results {
-  font-size: 11px;
-  color: #5f7463;
-  line-height: 1.7;
-  margin-top: 8px;
-}
-.round-results b {
-  color: #324b3b;
-}
-.score-line + .score-line {
-  margin-top: 7px;
-}
-.score-line small {
-  display: block;
-  overflow-wrap: anywhere;
-}
 .sound-setting {
   display: flex;
   gap: 7px;
@@ -1399,6 +1406,7 @@ kbd {
   position: relative;
   justify-content: flex-end;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
   background: #243b2fe6;

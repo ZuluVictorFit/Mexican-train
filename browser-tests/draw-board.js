@@ -1004,7 +1004,7 @@ try {
   const decoded = await pv.evaluate(async () => {
     const audio = new AudioContext();
     const result = [];
-    for (const name of ["turn-toot", "train-chug", "all-aboard"]) {
+    for (const name of ["turn-toot", "train-chug", "all-aboard", "real-all-aboard-long"]) {
       const response = await fetch(`/audio/${name}.mp3`);
       const sound = await audio.decodeAudioData(await response.arrayBuffer());
       let peak = 0;
@@ -1155,6 +1155,7 @@ try {
   for (const [slider, volume, button, expected] of [
     ["#soundTurnVolume", "12", '[data-play-sound="turn"]', 0.12],
     ["#soundNormalVolume", "35", '[data-play-sound="normal"]', 0.35],
+    ["#soundRealLongVolume", "54", '[data-play-sound="realLong"]', 0.54],
     ["#soundStationVolume", "67", '[data-play-sound="station"]', 0.67],
   ]) {
     await soundPage.locator(slider).fill(volume);
@@ -1205,6 +1206,7 @@ try {
   );
   await otherSoundPage.reload();
   await otherSoundPage.waitForSelector("#gameArea:not([hidden])");
+  await soundPage.locator('input[name="trainSound"][value="realLong"]').check();
   count = await soundPage.evaluate(() => window.__soundStarts.length);
   await otherSoundPage.locator("#drawButton").click();
   await otherSoundPage.waitForSelector("#endOpening:not([hidden])");
@@ -1217,18 +1219,22 @@ try {
     (n) => window.__soundStarts.slice(n),
     count,
   );
-  assert(automatic.some((s) => s.volume === 0.67 && s.time === 10.85));
+  assert(automatic.some((s) => s.volume === 0.54 && s.time === 10.85));
   await soundPage.reload();
   await soundPage.waitForSelector("#gameArea:not([hidden])");
   assert(await soundPage.locator("#soundTurnEnabled").isChecked());
   assert(
     await soundPage
-      .locator('input[name="trainSound"][value="station"]')
+      .locator('input[name="trainSound"][value="realLong"]')
       .isChecked(),
   );
   assert.equal(
     await soundPage.locator("#soundStationVolume").inputValue(),
     "67",
+  );
+  assert.equal(
+    await soundPage.locator("#soundRealLongVolume").inputValue(),
+    "54",
   );
   assert.equal(await soundPage.evaluate(() => window.__soundStarts.length), 0);
   await soundPage.locator("#soundTurnEnabled").uncheck();

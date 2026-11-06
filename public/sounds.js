@@ -2,6 +2,7 @@ const TRACKS = {
   turn: "/audio/turn-toot.mp3",
   normal: "/audio/train-chug.mp3",
   station: "/audio/all-aboard.mp3",
+  realLong: "/audio/real-all-aboard-long.mp3",
 };
 
 // Sound files and their playback are independent of the rules and the theme.

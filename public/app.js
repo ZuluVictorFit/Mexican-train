@@ -21,7 +21,7 @@ import {
   let soundPrefs = {
     turn: false,
     train: "off",
-    volumes: { turn: 70, normal: 70, station: 70 },
+    volumes: { turn: 70, normal: 70, station: 70, realLong: 70 },
   };
   let room = null,
     socket = null,
@@ -1433,9 +1433,9 @@ import {
     const saved = JSON.parse(localStorage.getItem(soundKey) || "null");
     if (saved && typeof saved === "object") {
       soundPrefs.turn = saved.turn === true;
-      if (["off", "normal", "station"].includes(saved.train))
+      if (["off", "normal", "station", "realLong"].includes(saved.train))
         soundPrefs.train = saved.train;
-      for (const name of ["turn", "normal", "station"]) {
+      for (const name of ["turn", "normal", "station", "realLong"]) {
         const value = Number(saved.volumes?.[name]);
         if (Number.isFinite(value))
           soundPrefs.volumes[name] = Math.max(0, Math.min(100, value));
@@ -1445,7 +1445,12 @@ import {
       soundPrefs.train = "normal";
     }
   } catch {}
-  const volumeControls = { turn: "Turn", normal: "Normal", station: "Station" };
+  const volumeControls = {
+    turn: "Turn",
+    normal: "Normal",
+    station: "Station",
+    realLong: "RealLong",
+  };
   $("soundTurnEnabled").checked = soundPrefs.turn;
   document.querySelector(
     `input[name="trainSound"][value="${soundPrefs.train}"]`,

@@ -71,7 +71,8 @@ devices. Player choices and game rules are otherwise unchanged.
 
 Sound settings are local to each player. A turn-ending toot can be enabled
 separately from the train-up sound, which can be off, a short chug-and-whistle,
-or a longer "all aboard" departure. Every sound has its own volume and a Play
+or either of the "all aboard" departures, including the user's Real All Aboard -
+Long recording. Every sound has its own volume and a Play
 button that works even when its automatic cue is off. Train-up cues also apply
 when the community train starts. Reconnection does not replay old events.
 

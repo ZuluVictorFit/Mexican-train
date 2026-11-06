@@ -240,6 +240,24 @@ import {
       refresh(t);
     }
   }
+  function swapHandTile(id) {
+    if (drag) cancelDrag();
+    const other = tile(swapTile);
+    const current = tile(id);
+    if (!current) return;
+    if (!other) swapTile = current.id;
+    else if (other.id === current.id) swapTile = null;
+    else {
+      [other.x, current.x] = [current.x, other.x];
+      [other.y, current.y] = [current.y, other.y];
+      clamp(other);
+      clamp(current);
+      autoHandFit = false;
+      swapTile = null;
+      save();
+    }
+    renderHand();
+  }
   function renderHand() {
     canvas.replaceChildren(
       ...state.tiles.map((t) => {
@@ -257,27 +275,12 @@ import {
         position(e, t);
         e.addEventListener("pointerdown", startDrag);
         e.addEventListener("contextmenu", (event) => {
-          event.preventDefault();
-          if (drag) cancelDrag();
-          const other = tile(swapTile);
-          const current = tile(t.id);
-          if (!current) return;
-          if (!other) swapTile = current.id;
-          else if (other.id === current.id) swapTile = null;
-          else {
-            [other.x, current.x] = [current.x, other.x];
-            [other.y, current.y] = [current.y, other.y];
-            clamp(other);
-            clamp(current);
-            autoHandFit = false;
-            swapTile = null;
-            save();
-          }
-          renderHand();
+          if (event.ctrlKey) event.preventDefault();
         });
         e.addEventListener("click", (ev) => {
           if (ev.detail === 0) {
-            if (selected === t.id) flip();
+            if (ev.ctrlKey) swapHandTile(t.id);
+            else if (selected === t.id) flip();
             else select(t.id);
           }
         });
@@ -328,6 +331,11 @@ import {
       : "Select a tile and choose a train.";
   }
   function startDrag(e) {
+    if (e.ctrlKey && (e.button === 0 || e.button === 2)) {
+      e.preventDefault();
+      swapHandTile(e.currentTarget.dataset.id);
+      return;
+    }
     if (e.button !== 0 || drag) return;
     const t = tile(e.currentTarget.dataset.id);
     if (!t) return;

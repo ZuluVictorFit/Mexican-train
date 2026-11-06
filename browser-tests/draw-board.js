@@ -1276,9 +1276,16 @@ try {
       const id1 = await first.getAttribute("data-id"), id2 = await second.getAttribute("data-id");
       const position = (id) => page.locator(`[data-id="${id}"]`).evaluate((el) => [el.style.left, el.style.top]);
       const before1 = await position(id1), before2 = await position(id2);
-      await first.click({ button: "right" });
+      const faces1 = await first.locator(".face").allTextContents();
+      assert(await first.evaluate((el) => el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }))));
+      await first.click({ modifiers: ["Control"] });
       assert(await page.locator(`[data-id="${id1}"]`).evaluate((el) => el.classList.contains("swap-pending")));
-      await page.locator(`[data-id="${id2}"]`).click({ button: "right" });
+      assert.deepEqual(await position(id1), before1);
+      assert.deepEqual(await page.locator(`[data-id="${id1}"] .face`).allTextContents(), faces1);
+      await page.locator(`[data-id="${id1}"]`).click({ modifiers: ["Control"] });
+      assert.equal(await page.locator(".domino.swap-pending").count(), 0);
+      await page.locator(`[data-id="${id1}"]`).click({ modifiers: ["Control"] });
+      await page.locator(`[data-id="${id2}"]`).click({ modifiers: ["Control"] });
       assert.deepEqual(await position(id1), before2);
       assert.deepEqual(await position(id2), before1);
       await page.reload();

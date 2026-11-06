@@ -61,6 +61,11 @@ Save decisions here so later tasks can reference a small relevant document.
 
 ## Avoid rework
 
+Hand-swap rollback checkpoint: `0692231` is the revision before both swap
+gestures; `cb2c74e` adds the original right-click gesture alongside other
+seating, camera, and hand fixes. If either swap gesture disrupts the hand,
+remove the swap-specific changes while preserving those other fixes.
+
 Do not implement multiplayer around uncertain tile interactions. Do not polish
 textures while turn rules remain ambiguous. Use one rendering direction and a few
 focused storyboard states before generating many cosmetic alternatives. Record

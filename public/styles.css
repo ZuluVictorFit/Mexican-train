@@ -1172,12 +1172,16 @@ kbd {
   margin-top: 12px;
 }
 .train-list {
-  max-height: 112px;
+  max-height: 190px;
   overflow: auto;
   background: #f8f6ed;
   padding: 6px 10px;
   display: grid;
   gap: 4px;
+}
+.domino.swap-pending {
+  outline: 3px dashed #ffbd00;
+  outline-offset: 3px;
 }
 .train-gap {
   width: 40px;
@@ -1548,5 +1552,67 @@ kbd {
 @media (max-width: 1100px) {
   .board-viewport {
     height: clamp(330px, 46vh, 420px);
+  }
+}
+
+/* Make room for the four-player quick view and the hand on shorter screens. */
+@media (min-width: 761px) and (max-height: 1050px) {
+  .topbar {
+    height: 52px;
+  }
+  .app-layout {
+    padding-top: 12px;
+    padding-bottom: 8px;
+  }
+  .turn-banner {
+    padding: 5px 12px;
+    margin-bottom: 6px;
+    font-size: 15px;
+  }
+  .action-banner {
+    padding: 7px 11px;
+    margin-bottom: 6px;
+  }
+  .board-viewport {
+    height: clamp(
+      210px,
+      calc(100vh - 535px - var(--visible-train-rows, 5) * 30px),
+      480px
+    );
+  }
+  .board-caption {
+    height: 20px;
+  }
+  .hand-card {
+    margin-top: 4px;
+  }
+  .hand-header {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+  .hand-viewport {
+    height: 175px;
+  }
+  .hand-footer {
+    min-height: 40px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+  .sidebar {
+    max-height: calc(100vh - 76px);
+    overflow-y: auto;
+  }
+}
+@media (min-width: 761px) and (max-height: 800px) {
+  .board-viewport {
+    min-height: 0;
+    height: clamp(
+      160px,
+      calc(100vh - 525px - var(--visible-train-rows, 5) * 30px),
+      480px
+    );
+  }
+  .hand-viewport {
+    height: 150px;
   }
 }

@@ -200,6 +200,32 @@ const sixSeats = Array.from({ length: 6 }, (_, i) => ({
   name: `Player ${i + 1}`,
   color: `#${(0x223344 + i * 0x101010).toString(16).padStart(6, "0")}`,
 }));
+const fourSeats = sixSeats.slice(0, 4);
+const fourGame = newGame(fourSeats, 12, () => 0);
+fourGame.turn = 0;
+fourGame.players.forEach((player) => (player.open = true));
+for (const key of [...fourSeats.map((seat) => `p:${seat.id}`), "community"])
+  fourGame.trains[key] = {
+    end: 12,
+    tiles: chain.map((tile, index) => ({
+      ...tile,
+      a: index === 0 ? 12 : index - 1,
+      b: index === 0 ? 0 : index,
+      by: "seat0",
+    })),
+  };
+db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+  "TEST32",
+  JSON.stringify({ code: "TEST32", host: "seat0", seats: fourSeats, revision: 0, game: fourGame, commands: {} }),
+);
+const roundGame = newGame(seats, 12, () => 0);
+roundGame.turn = 0;
+roundGame.players[0].first = false;
+roundGame.players[0].hand = [t(1, 12)];
+db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
+  "TEST33",
+  JSON.stringify({ code: "TEST33", host: "seat0", seats, revision: 0, game: roundGame, commands: {} }),
+);
 const sixGame = newGame(sixSeats, 12, () => 0);
 sixGame.turn = 0;
 db.prepare("INSERT INTO rooms(code,data) VALUES (?,?)").run(
@@ -370,11 +396,27 @@ try {
       );
       await otherPage.reload();
       await otherPage.waitForSelector("#gameArea:not([hidden])");
+      const held = otherPage.locator(".domino").first();
+      await held.scrollIntoViewIfNeeded();
+      const heldBox = await held.boundingBox();
+      const handBox = await otherPage.locator("#handViewport").boundingBox();
+      await otherPage.mouse.move(heldBox.x + heldBox.width / 2, heldBox.y + heldBox.height / 2);
+      await otherPage.mouse.down();
+      await otherPage.mouse.move(heldBox.x + heldBox.width / 2, handBox.y - 20, { steps: 4 });
+      assert.equal(await otherPage.locator(".drag-ghost").count(), 1);
     }
+    const viewBeforeDraw = await p.locator(".rail-board").getAttribute("viewBox");
     assert(await p.locator("#drawButton").isEnabled());
     assert.match(await p.locator("#actionBanner").textContent(), /Your turn/);
     await p.click("#drawButton");
     await p.waitForSelector(".domino.drawn");
+    assert.equal(await p.locator(".rail-board").getAttribute("viewBox"), viewBeforeDraw);
+    if (otherPage) {
+      await otherPage.waitForFunction(() => !document.querySelector(".drag-ghost"));
+      await otherPage.mouse.up();
+      await otherPage.locator(".domino").first().click();
+      assert.equal(await otherPage.locator(".domino.selected").count(), 1);
+    }
     assert.equal(await p.locator("#boneyardCount").textContent(), "1");
     await green("#drawButton");
     await green("#endOpening");
@@ -565,6 +607,13 @@ try {
   await p.click("#fitBoard");
   const fitted = await p.locator(".rail-board").getAttribute("viewBox");
   assert.notEqual(fitted, after);
+  await p.click("#zoomOut");
+  assert(
+    Number((await p.locator(".rail-board").getAttribute("viewBox")).split(" ")[2]) >
+      Number(fitted.split(" ")[2]),
+    "players can zoom out beyond the last fitted view",
+  );
+  await p.click("#fitBoard");
   const boardBox = await p.locator(".rail-board").boundingBox();
   for (const domino of await p.locator(".rail-domino").all()) {
     const box = await domino.boundingBox();
@@ -1201,6 +1250,62 @@ try {
   console.log(
     "Sound previews, individual volumes, automatic cues and silent reconnect passed.",
   );
+  for (let index = 0; index < 4; index++) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    await context.addCookies([{ name: "mt_session", value: fourSeats[index].session, url }]);
+    const page = await context.newPage();
+    await page.goto(url);
+    await page.evaluate(() => localStorage.setItem("mexican-train-room", "TEST32"));
+    await page.reload();
+    await page.waitForSelector("#gameArea:not([hidden])");
+    const order = await page.locator(".train-line [data-train]").evaluateAll((els) => els.map((el) => el.dataset.train));
+    assert.deepEqual(order, [...Array.from({ length: 4 }, (_, offset) => `p:seat${(index + offset) % 4}`), "community"]);
+    assert(await page.locator("#trainList").evaluate((el) => el.scrollHeight <= el.clientHeight));
+    if (index === 0) {
+      for (const dimensions of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
+        await page.setViewportSize(dimensions);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        assert(await page.locator("#trainList").evaluate((el) => el.scrollHeight <= el.clientHeight));
+        if (dimensions.height === 900) {
+          const bottom = await page.locator("#handCard").evaluate((el) => el.getBoundingClientRect().bottom);
+          assert(bottom <= dimensions.height, `Hand bottom ${bottom} exceeds viewport ${dimensions.height}`);
+        }
+      }
+      await page.setViewportSize({ width: 1440, height: 900 });
+      const first = page.locator(".domino").nth(0), second = page.locator(".domino").nth(1);
+      const id1 = await first.getAttribute("data-id"), id2 = await second.getAttribute("data-id");
+      const position = (id) => page.locator(`[data-id="${id}"]`).evaluate((el) => [el.style.left, el.style.top]);
+      const before1 = await position(id1), before2 = await position(id2);
+      await first.click({ button: "right" });
+      assert(await page.locator(`[data-id="${id1}"]`).evaluate((el) => el.classList.contains("swap-pending")));
+      await page.locator(`[data-id="${id2}"]`).click({ button: "right" });
+      assert.deepEqual(await position(id1), before2);
+      assert.deepEqual(await position(id2), before1);
+      await page.reload();
+      await page.waitForSelector("#gameArea:not([hidden])");
+      assert.deepEqual(await position(id1), before2);
+      assert.deepEqual(await position(id2), before1);
+    }
+    await context.close();
+  }
+  const roundContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await roundContext.addCookies([{ name: "mt_session", value: sessions[0], url }]);
+  const roundPage = await roundContext.newPage();
+  await roundPage.goto(url);
+  await roundPage.evaluate(() => localStorage.setItem("mexican-train-room", "TEST33"));
+  await roundPage.reload();
+  await roundPage.waitForSelector("#gameArea:not([hidden])");
+  await roundPage.locator("#zoomIn").click();
+  const viewBeforeRound = await roundPage.locator(".rail-board").getAttribute("viewBox");
+  await roundPage.locator('[data-id="1-12"]').click();
+  await roundPage.locator('.train-line [data-train="p:seat0"]').click();
+  await roundPage.locator("#nextRound").waitFor({ state: "visible" });
+  assert.equal(await roundPage.locator(".rail-board").getAttribute("viewBox"), viewBeforeRound);
+  await roundPage.locator("#nextRound").click();
+  await roundPage.waitForFunction(() => document.querySelector("#roundLabel").textContent.includes("Round 2"));
+  assert.equal(await roundPage.locator(".rail-board").getAttribute("viewBox"), viewBeforeRound);
+  await roundContext.close();
+  console.log("Clockwise seats, hand swapping, and view preservation across rounds passed.");
   const hostContext = await browser.newContext({ viewport: { width: 1024, height: 768 } });
   const guestContext = await browser.newContext({ viewport: { width: 1024, height: 768 } });
   await hostContext.addCookies([{ name: "mt_session", value: sessions[0], url }]);

@@ -27,6 +27,7 @@ import {
     socket = null,
     state = { tiles: [], endpoints: {} },
     selected = null,
+    swapTile = null,
     fullscreen = false,
     scale = 1,
     drag = null,
@@ -78,6 +79,7 @@ import {
   function loadHand(g) {
     const key = `mexican-train-layout-${room.code}-${room.me}-${g.round}`;
     const changedHand = key !== layoutKey;
+    if (changedHand) swapTile = null;
     let old = [];
     try {
       old =
@@ -145,6 +147,7 @@ import {
       return { ...t, ...place };
     });
     if (!tile(selected)) selected = null;
+    if (!tile(swapTile)) swapTile = null;
     save();
   }
   function updateSize() {
@@ -244,6 +247,7 @@ import {
         e.type = "button";
         e.className = "domino";
         if (t.id === latestDraw) e.classList.add("drawn");
+        if (t.id === swapTile) e.classList.add("swap-pending");
         e.dataset.id = t.id;
         e.innerHTML = faces(t).map(face).join("");
         e.setAttribute(
@@ -252,6 +256,25 @@ import {
         );
         position(e, t);
         e.addEventListener("pointerdown", startDrag);
+        e.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          if (drag) cancelDrag();
+          const other = tile(swapTile);
+          const current = tile(t.id);
+          if (!current) return;
+          if (!other) swapTile = current.id;
+          else if (other.id === current.id) swapTile = null;
+          else {
+            [other.x, current.x] = [current.x, other.x];
+            [other.y, current.y] = [current.y, other.y];
+            clamp(other);
+            clamp(current);
+            autoHandFit = false;
+            swapTile = null;
+            save();
+          }
+          renderHand();
+        });
         e.addEventListener("click", (ev) => {
           if (ev.detail === 0) {
             if (selected === t.id) flip();
@@ -328,6 +351,7 @@ import {
     e.currentTarget.addEventListener("pointermove", moveDrag);
     e.currentTarget.addEventListener("pointerup", endDrag);
     e.currentTarget.addEventListener("pointercancel", cancelDrag);
+    e.currentTarget.addEventListener("lostpointercapture", cancelDrag);
     e.preventDefault();
   }
   const inside = (x, y, r) =>
@@ -364,12 +388,15 @@ import {
   }
   function cleanup() {
     if (!drag) return;
-    drag.el.removeEventListener("pointermove", moveDrag);
-    drag.el.removeEventListener("pointerup", endDrag);
-    drag.el.removeEventListener("pointercancel", cancelDrag);
-    drag.el.style.opacity = "";
-    drag.ghost?.remove();
+    const { el, pointer, ghost } = drag;
     drag = null;
+    el.removeEventListener("pointermove", moveDrag);
+    el.removeEventListener("pointerup", endDrag);
+    el.removeEventListener("pointercancel", cancelDrag);
+    el.removeEventListener("lostpointercapture", cancelDrag);
+    el.style.opacity = "";
+    ghost?.remove();
+    if (el.hasPointerCapture(pointer)) el.releasePointerCapture(pointer);
   }
   function cancelDrag() {
     if (!drag) return;
@@ -462,27 +489,27 @@ import {
     if (!boardView.svg) return;
     const board = $("board");
     const aspect = board.clientWidth / Math.max(1, board.clientHeight);
-    if (boardView.bounds) {
-      const b = boardView.bounds;
-      boardView.fitX = (b.minX + b.maxX) / 2;
-      boardView.fitY = (b.minY + b.maxY) / 2;
-      boardView.radius = Math.max(
-        100,
-        (b.maxY - b.minY) / 2,
-        (b.maxX - b.minX) / (2 * aspect),
-      );
-      if (boardView.fitActive) {
-        boardView.x = boardView.fitX;
-        boardView.y = boardView.fitY;
-      }
-    }
     const radius = boardView.radius / boardView.zoom;
     boardView.svg.setAttribute(
       "viewBox",
       `${boardView.x - radius * aspect} ${boardView.y - radius} ${radius * aspect * 2} ${radius * 2}`,
     );
-    $("zoomOut").disabled = boardView.zoom <= 1;
+    $("zoomOut").disabled = boardView.zoom <= 0.25;
     $("zoomIn").disabled = boardView.zoom >= 32;
+  }
+  function fitBoard() {
+    const b = boardView.bounds;
+    if (!b) return;
+    const aspect =
+      $("board").clientWidth / Math.max(1, $("board").clientHeight);
+    boardView.radius = Math.max(
+      100,
+      (b.maxY - b.minY) / 2,
+      (b.maxX - b.minX) / (2 * aspect),
+    );
+    boardView.x = (b.minX + b.maxX) / 2;
+    boardView.y = (b.minY + b.maxY) / 2;
+    boardView.zoom = 1;
   }
   function focusTrainEnd(train) {
     const distance = Math.hypot(train.target.x, train.target.y);
@@ -499,10 +526,18 @@ import {
     document.querySelector(".board > .hub").hidden = true;
     const dynamic = $("dynamicBoard"),
       list = $("trainList");
+    list.closest(".board-frame").style.setProperty(
+      "--visible-train-rows",
+      Math.min(g.players.length + 1, 5),
+    );
     dynamic.replaceChildren();
     list.replaceChildren();
     const me = g.players.find((p) => p.id === room.me);
-    const others = g.players.filter((p) => p.id !== room.me);
+    const seatIndex = g.players.findIndex((p) => p.id === room.me);
+    const others = [
+      ...g.players.slice(seatIndex + 1),
+      ...g.players.slice(0, seatIndex),
+    ];
     const lanes = [
       { key: `p:${me.id}`, name: "Your train", color: me.color, open: me.open },
       ...others.map((p) => ({
@@ -523,42 +558,10 @@ import {
       expanded: expandedTrains,
     });
     boardView.trains = table.trains;
-    if (boardView.round !== g.round) {
-      boardView.zoom = 1;
-      boardView.x = 0;
-      boardView.y = 0;
-      boardView.manual = false;
-      boardView.round = g.round;
-    }
     boardView.bounds = table.bounds;
-    const aspect =
-      $("board").clientWidth / Math.max(1, $("board").clientHeight);
-    boardView.fitX = (table.bounds.minX + table.bounds.maxX) / 2;
-    boardView.fitY = (table.bounds.minY + table.bounds.maxY) / 2;
-    boardView.radius = Math.max(
-      100,
-      (table.bounds.maxY - table.bounds.minY) / 2,
-      (table.bounds.maxX - table.bounds.minX) / (2 * aspect),
-    );
-    // Keep the active end readable as a long train grows. Players can always
-    // return to a complete overview with Fit table or focus any other train.
-    if (!boardView.manual) {
-      if (
-        g.phase === "playing" &&
-        g.turn === room.me &&
-        boardView.radius > 400
-      ) {
-        const target = table.trains.find(
-          (train) => train.key === (g.pending?.train || `p:${room.me}`),
-        );
-        boardView.fitActive = false;
-        focusTrainEnd(target);
-      } else {
-        boardView.zoom = 1;
-        boardView.fitActive = true;
-        boardView.x = boardView.fitX;
-        boardView.y = boardView.fitY;
-      }
+    if (boardView.room !== room.code) {
+      boardView.room = room.code;
+      fitBoard();
     }
     const svg = svgElement("svg", {
       role: "group",
@@ -634,9 +637,6 @@ import {
     function toggleTrain(key) {
       if (expandedTrains.has(key)) expandedTrains.delete(key);
       else expandedTrains.add(key);
-      boardView.manual = true;
-      boardView.fitActive = true;
-      boardView.zoom = 1;
       board(g);
     }
     // The markers sit on the hub at the start of each route, independent of
@@ -831,8 +831,6 @@ import {
       focus.textContent = "Focus";
       focus.setAttribute("aria-label", `Focus ${train.name}`);
       focus.addEventListener("click", () => {
-        boardView.manual = true;
-        boardView.fitActive = false;
         focusTrainEnd(train);
         updateBoardView();
       });
@@ -914,20 +912,16 @@ import {
         const mid = touchPair(),
           p = pointAt(mid.x, mid.y);
         boardView.zoom = Math.max(
-          1,
+          0.25,
           Math.min(32, (pinch.zoom * mid.distance) / pinch.distance),
         );
         const radius = boardView.radius / boardView.zoom;
         boardView.x = pinch.worldX - p.nx * 2 * p.aspect * radius;
         boardView.y = pinch.worldY - p.ny * 2 * radius;
-        boardView.manual = true;
-        boardView.fitActive = false;
         updateBoardView();
         return;
       }
       if (!pan || event.pointerId !== pan.pointer) return;
-      boardView.manual = true;
-      boardView.fitActive = false;
       const rect = svg.getBoundingClientRect();
       const aspect =
         $("board").clientWidth / Math.max(1, $("board").clientHeight);
@@ -955,6 +949,7 @@ import {
     updateSelection();
   }
   function render(r) {
+    if (drag) cancelDrag();
     const previous = room;
     let arrivingTile = null;
     if (
@@ -1257,21 +1252,15 @@ import {
   // Keep the relevant actions next to the turn instructions on desktop and tablet.
   $("actionBanner").after(document.querySelector(".game-controls"));
   $("zoomIn").addEventListener("click", () => {
-    boardView.manual = true;
-    boardView.fitActive = false;
     boardView.zoom = Math.min(32, boardView.zoom * 1.5);
     updateBoardView();
   });
   $("zoomOut").addEventListener("click", () => {
-    boardView.manual = true;
-    boardView.fitActive = false;
-    boardView.zoom = Math.max(1, boardView.zoom / 1.5);
+    boardView.zoom = Math.max(0.25, boardView.zoom / 1.5);
     updateBoardView();
   });
   $("fitBoard").addEventListener("click", () => {
-    boardView.manual = true;
-    boardView.zoom = 1;
-    boardView.fitActive = true;
+    fitBoard();
     updateBoardView();
   });
   $("boardViewport").addEventListener(
@@ -1289,15 +1278,13 @@ import {
       const factor = Math.exp(
         -Math.max(-500, Math.min(500, event.deltaY * mode)) * 0.0015,
       );
-      const nextZoom = Math.max(1, Math.min(32, boardView.zoom * factor));
+      const nextZoom = Math.max(0.25, Math.min(32, boardView.zoom * factor));
       if (nextZoom === boardView.zoom) return;
       event.preventDefault();
       const after = boardView.radius / nextZoom;
       boardView.x += nx * 2 * aspect * (before - after);
       boardView.y += ny * 2 * (before - after);
       boardView.zoom = nextZoom;
-      boardView.manual = true;
-      boardView.fitActive = false;
       updateBoardView();
     },
     { passive: false },
@@ -1513,6 +1500,9 @@ import {
       socket = io();
       socket.on("state", render);
       function returnHome(message = "") {
+        if (drag) cancelDrag();
+        swapTile = null;
+        boardView.room = null;
         room = null;
         clearTimeout(turnHintTimer);
         turnHintTimer = null;
